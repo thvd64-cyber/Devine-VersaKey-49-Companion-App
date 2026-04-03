@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="VersaKey">
+<meta name="theme-color" content="#f0ebe0">
+<meta name="description" content="Devine VersaKey Series MIDI Keyboard App — VK-25, VK-49, VK-61, VK-88">
+<title>Devine VersaKey</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.svg">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f0ebe0; --surface:#e8e2d4; --surface2:#ddd8cc; --surface3:#ccc6b8;
+  --accent:#8b6f3a; --accent2:#b8935a; --glow:rgba(139,111,58,.18);
+  --text:#2a2520; --muted:#7a7060; --dim:#b0a898;
+  --border:rgba(139,111,58,.18); --border2:rgba(139,111,58,.1);
+  --wk:#faf8f3; --wkh:#fff9ee; --wka:#BA7517;
+  --bk:#1c1a18; --bkh:#2e2c28; --bka:#854F0B;
+  --ok:#2d7a3a; --err:#a33030;
+  --r:8px; --kr:4px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:none;user-select:none;}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
+.logo{display:flex;align-items:center;gap:9px;flex-shrink:0;}
+.logo-dot{width:28px;height:28px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.logo-dot::after{content:'';width:10px;height:10px;border-radius:50%;background:var(--bg);}
+.logo-text{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.07em;}
+.logo-sub{font-size:10px;color:var(--muted);margin-top:1px;}
+.sep{width:1px;height:20px;background:var(--border);flex-shrink:0;}
+.lbl{font-size:10px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;font-family:'Space Mono',monospace;white-space:nowrap;}
+.val{font-size:12px;color:var(--accent);font-family:'Space Mono',monospace;min-width:26px;text-align:center;}
+.btn{padding:4px 9px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:11px;cursor:pointer;transition:all .12s;white-space:nowrap;font-family:'Outfit',sans-serif;}
+.btn:hover{background:var(--surface2);border-color:var(--accent);}
+.btn:active{transform:scale(.93);}
+.btn.on{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn.mon{background:rgba(139,111,58,.15);color:var(--accent);border-color:var(--accent);font-weight:600;}
+.sel{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:4px 9px;border-radius:6px;font-size:11px;font-family:'Outfit',sans-serif;outline:none;cursor:pointer;max-width:148px;touch-action:auto;}
+.sel:focus{border-color:var(--accent);}
+.rng{-webkit-appearance:none;height:3px;border-radius:2px;background:var(--surface3);outline:none;width:72px;accent-color:var(--accent);}
+.rng::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid var(--bg);}
+.midi-badge{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:var(--bg);font-size:10px;font-family:'Space Mono',monospace;color:var(--muted);cursor:pointer;white-space:nowrap;flex-shrink:0;}
+.midi-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--dim);transition:background .3s;flex-shrink:0;}
+.midi-badge.ok .dot{background:var(--ok);box-shadow:0 0 4px var(--ok);}
+.midi-badge.ok{color:var(--ok);}
+.midi-badge.err .dot{background:var(--err);}
+.midi-badge.err{color:var(--err);}
+.pads-bar{display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
+.pads-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:5px;flex:1;min-width:0;}
+.pad{height:42px;border-radius:6px;border:1px solid rgba(0,0,0,.1);background:var(--surface);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;transition:all .08s;position:relative;overflow:hidden;touch-action:none;box-shadow:0 1px 3px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.5);}
+.pad-bg{position:absolute;inset:0;opacity:.16;transition:opacity .08s;}
+.pad:hover .pad-bg{opacity:.28;}
+.pad.hit{transform:scale(.89);box-shadow:inset 0 2px 5px rgba(0,0,0,.18);}
+.pad.hit .pad-bg{opacity:.65;}
+.pad-name{font-size:9px;font-weight:600;color:var(--text);position:relative;z-index:1;text-align:center;font-family:'Space Mono',monospace;}
+.pad-n{font-size:7px;color:var(--muted);position:relative;z-index:1;}
+.midi-bar{display:none;align-items:center;gap:8px;padding:5px 16px;background:rgba(45,122,58,.06);border-bottom:1px solid rgba(45,122,58,.15);}
+.midi-bar.show{display:flex;}
+.midi-sel{background:var(--bg);border:1px solid rgba(45,122,58,.25);color:var(--text);padding:3px 9px;border-radius:6px;font-size:11px;font-family:'Outfit',sans-serif;outline:none;cursor:pointer;flex:1;max-width:280px;touch-action:auto;}
+.midi-info{font-size:10px;color:var(--ok);font-family:'Space Mono',monospace;}
+.kb-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:14px 16px 10px;overflow:hidden;position:relative;}
+.kb-area{display:flex;align-items:flex-end;width:100%;justify-content:center;}
+.kb-scroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:var(--surface3) transparent;}
+.kb-scroll::-webkit-scrollbar{height:3px;}
+.kb-scroll::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px;}
+.keyboard{position:relative;display:inline-block;}
+.wk{position:absolute;bottom:0;background:var(--wk);border:1px solid #c8bfb0;border-radius:0 0 var(--kr) var(--kr);cursor:pointer;z-index:1;display:flex;align-items:flex-end;justify-content:center;padding-bottom:5px;box-shadow:0 2px 4px rgba(0,0,0,.1),inset 0 -2px 4px rgba(0,0,0,.05);touch-action:none;}
+.wk:hover{background:var(--wkh);}
+.wk.on{background:var(--wka)!important;}
+.bk{position:absolute;top:0;background:linear-gradient(to bottom,#2a2820,var(--bk));border:1px solid #000;border-radius:0 0 3px 3px;cursor:pointer;z-index:2;box-shadow:2px 3px 5px rgba(0,0,0,.4);touch-action:none;}
+.bk:hover{background:linear-gradient(to bottom,#3a3830,#2e2c28);}
+.bk.on{background:var(--bka)!important;}
+.k-lbl{font-size:8px;color:#888;font-family:'Space Mono',monospace;}
+.strips{display:flex;gap:6px;margin-right:10px;flex-shrink:0;padding-bottom:20px;}
+.strip{width:20px;height:165px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;position:relative;overflow:hidden;cursor:ns-resize;box-shadow:inset 0 2px 5px rgba(0,0,0,.05);touch-action:none;}
+.sf{position:absolute;bottom:0;left:0;right:0;border-radius:0 0 10px 10px;transition:height .04s;}
+.pf{background:#3b82f6;}
+.mf{background:var(--accent);}
+.s-lbl{font-size:8px;color:var(--muted);text-align:center;margin-top:3px;letter-spacing:.04em;font-family:'Space Mono',monospace;}
+.note-bar{display:flex;align-items:center;justify-content:space-between;padding:5px 16px;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;}
+.note-txt{font-size:11px;font-family:'Space Mono',monospace;color:var(--muted);}
+.led{width:7px;height:7px;border-radius:50%;background:var(--dim);transition:all .05s;}
+.led.f{background:var(--ok);box-shadow:0 0 6px var(--ok);}
+@media(max-width:650px){.pads-grid{grid-template-columns:repeat(4,1fr);}.sel{max-width:115px;}.rng{width:55px;}.topbar{padding:8px 10px;gap:6px;}.pads-bar{padding:7px 10px;}.kb-wrap{padding:10px 10px 8px;}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    <div><div class="logo-text">DEVINE</div><div class="logo-sub">VersaKey Series</div></div>
+  </div>
+  <div class="sep"></div>
+  <span class="lbl">Model</span>
+  <button class="btn" id="m25" onclick="setModel(25)">VK-25</button>
+  <button class="btn mon" id="m49" onclick="setModel(49)">VK-49</button>
+  <button class="btn" id="m61" onclick="setModel(61)">VK-61</button>
+  <button class="btn" id="m88" onclick="setModel(88)">VK-88</button>
+  <div class="sep"></div>
+  <span class="lbl">Geluid</span>
+  <select class="sel" id="instrSel" onchange="setInstr(this.value)">
+    <optgroup label="Piano">
+      <option value="0" selected>Grand Piano</option><option value="1">Bright Piano</option>
+      <option value="2">Electric Grand</option><option value="4">E-Piano 1</option>
+      <option value="5">E-Piano 2</option><option value="6">Harpsichord</option>
+    </optgroup>
+    <optgroup label="Organ">
+      <option value="16">Drawbar Organ</option><option value="18">Rock Organ</option><option value="19">Church Organ</option>
+    </optgroup>
+    <optgroup label="Guitar">
+      <option value="24">Nylon Guitar</option><option value="25">Steel Guitar</option><option value="30">Dist. Guitar</option>
+    </optgroup>
+    <optgroup label="Strings">
+      <option value="40">Violin</option><option value="48">Strings 1</option><option value="49">Strings 2</option>
+    </optgroup>
+    <optgroup label="Brass">
+      <option value="56">Trumpet</option><option value="61">Brass Section</option>
+    </optgroup>
+    <optgroup label="Synth">
+      <option value="80">Syn Square</option><option value="81">Syn Saw</option>
+      <option value="88">New Age Pad</option><option value="89">Warm Pad</option>
+    </optgroup>
+    <optgroup label="Bass">
+      <option value="32">Acoustic Bass</option><option value="33">Fingered Bass</option><option value="38">Synth Bass</option>
+    </optgroup>
+  </select>
+  <div class="sep"></div>
+  <span class="lbl">Oct</span>
+  <button class="btn" onclick="chOct(-1)">−</button>
+  <span class="val" id="octV">C2</span>
+  <button class="btn" onclick="chOct(1)">+</button>
+  <div class="sep"></div>
+  <span class="lbl">Transp</span>
+  <button class="btn" onclick="chTr(-1)">−</button>
+  <span class="val" id="trV">0</span>
+  <button class="btn" onclick="chTr(1)">+</button>
+  <div class="sep"></div>
+  <span class="lbl">Vol</span>
+  <input type="range" class="rng" min="0" max="100" value="80" step="1" oninput="chVol(this.value)">
+  <span class="val" id="volV">80</span>
+  <div class="sep"></div>
+  <button class="btn" id="susBtn" onclick="chSus()">Sustain</button>
+  <div class="sep"></div>
+  <div class="midi-badge" id="midiBadge" onclick="scanMidi()" title="Klik om MIDI te scannen">
+    <div class="dot"></div><span id="midiLbl">MIDI scannen…</span>
+  </div>
+</div>
+
+<div class="pads-bar">
+  <span class="lbl">Drum Pads</span>
+  <div class="pads-grid" id="padsG"></div>
+  <button class="btn" id="bankBtn" onclick="chBank()" style="flex-shrink:0;margin-left:4px;">Bank 1–8</button>
+</div>
+
+<div class="midi-bar" id="midiBar">
+  <span class="midi-info">Apparaat:</span>
+  <select class="midi-sel" id="midiSel" onchange="pickMidi(this.value)">
+    <option value="">— kies MIDI apparaat —</option>
+  </select>
+  <span class="midi-info" id="midiInfo"></span>
+</div>
+
+<div class="kb-wrap">
+  <div class="kb-area">
+    <div class="strips">
+      <div>
+        <div class="strip" id="pitchS"
+          ontouchstart="sS(event,'p')" ontouchmove="sM(event,'p')" ontouchend="sE(event,'p')"
+          onmousedown="sS(event,'p')">
+          <div class="sf pf" id="pitchF" style="height:50%"></div>
+        </div>
+        <div class="s-lbl">PITCH</div>
+      </div>
+      <div>
+        <div class="strip" id="modS"
+          ontouchstart="sS(event,'m')" ontouchmove="sM(event,'m')" ontouchend="sE(event,'m')"
+          onmousedown="sS(event,'m')">
+          <div class="sf mf" id="modF" style="height:0%"></div>
+        </div>
+        <div class="s-lbl">MOD</div>
+      </div>
+    </div>
+    <div class="kb-scroll">
+      <div class="keyboard" id="kb"></div>
+    </div>
+  </div>
+</div>
+
+<div class="note-bar">
+  <span class="note-txt" id="noteTxt">— speel een toets —</span>
+  <div class="led" id="led"></div>
+  <span class="note-txt" id="devTxt" style="font-size:10px;"></span>
+</div>
+
+<script>
+var aC=null,mG=null,aN={},sus=false,susH={};
+var vol=.8,vel=90,octOff=0,tr=0,instr=0,mdl=49,pb=0;
+var sDr={},bank=0;
+var NN=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+var BP=[0,1,0,1,0,0,1,0,1,0,1,0];
+var MC={25:{s:48,n:25},49:{s:36,n:49},61:{s:36,n:61},88:{s:21,n:88}};
+var WW=36,WH=170,BW=22,BH=105;
+
+function iA(){if(aC)return;aC=new(window.AudioContext||window.webkitAudioContext)();mG=aC.createGain();mG.gain.value=vol;mG.connect(aC.destination);}
+function rA(){if(aC&&aC.state==='suspended')aC.resume();}
+
+var PRF={
+  pi:{t:'triangle',a:.005,d:.3,s:.4,r:.8,h:[1,.5,.25,.12,.06],dt:0},
+  or:{t:'sine',a:.01,d:0,s:1,r:.1,h:[1,.8,.6,.3],dt:0},
+  gu:{t:'sawtooth',a:.003,d:.15,s:.3,r:.4,h:[1,.6,.3,.15],dt:2},
+  st:{t:'sawtooth',a:.09,d:.1,s:.8,r:.6,h:[1,.7,.3,.1],dt:6},
+  br:{t:'sawtooth',a:.04,d:.08,s:.9,r:.2,h:[1,.6,.4,.2],dt:3},
+  sy:{t:'sawtooth',a:.01,d:.1,s:.7,r:.3,h:[1,.5,.33,.25],dt:0},
+  ba:{t:'triangle',a:.005,d:.2,s:.5,r:.3,h:[1,.8,.2,.08],dt:1},
+  pa:{t:'sine',a:.22,d:.1,s:.9,r:.9,h:[1,.6,.3,.15],dt:9}
+};
+function gP(i){i=+i;if(i<=7)return PRF.pi;if(i>=16&&i<=23)return PRF.or;if(i>=24&&i<=31)return PRF.gu;if(i>=32&&i<=39)return PRF.ba;if(i>=40&&i<=55)return PRF.st;if(i>=56&&i<=63)return PRF.br;if(i>=80&&i<=87)return PRF.sy;if(i>=88&&i<=95)return PRF.pa;return PRF.pi;}
+function m2f(n){return 440*Math.pow(2,(n-69)/12);}
+
+function nOn(mn,v,hw){
+  iA();rA();nOf(mn,true);
+  var p=gP(instr),freq=m2f(mn)*Math.pow(2,pb/12),vv=(v/127)*vol;
+  var g=aC.createGain(),now=aC.currentTime;
+  var fl=aC.createBiquadFilter();fl.type='lowpass';fl.frequency.value=Math.min(3800+mn*32,17000);fl.Q.value=.7;
+  fl.connect(g);g.connect(mG);
+  g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(vv,now+p.a);g.gain.linearRampToValueAtTime(vv*p.s,now+p.a+p.d);
+  var os=p.h.map(function(amp,i){var o=aC.createOscillator(),hg=aC.createGain();o.type=p.t;o.frequency.value=freq*(i+1);o.detune.value=(i%2?1:-1)*p.dt*i;hg.gain.value=amp;o.connect(hg);hg.connect(fl);o.start(now);return o;});
+  aN[mn]={g:g,os:os,p:p};kviz(mn,true);flash();
+  document.getElementById('noteTxt').textContent=(hw?'[HW] ':'')+NN[mn%12]+(Math.floor(mn/12)-1)+' · MIDI '+mn;
+}
+function nOf(mn,force){
+  if(!aN[mn])return;
+  if(sus&&!force){susH[mn]=true;return;}
+  var x=aN[mn],now=aC?aC.currentTime:0;
+  x.g.gain.cancelScheduledValues(now);x.g.gain.setValueAtTime(x.g.gain.value,now);x.g.gain.linearRampToValueAtTime(0,now+x.p.r);
+  x.os.forEach(function(o){try{o.stop(now+x.p.r+.05);}catch(e){}});
+  delete aN[mn];kviz(mn,false);
+}
+function allOf(){Object.keys(aN).forEach(function(n){nOf(+n,true);});susH={};}
+function kviz(mn,on){var e=document.querySelector('[data-m="'+(mn-tr)+'"]');if(e)e.classList.toggle('on',on);}
+
+function buildKB(n,s){
+  var kb=document.getElementById('kb');kb.innerHTML='';kb.style.height=WH+'px';
+  var wc=0,ks=[];
+  for(var i=0;i<n;i++){var m=s+i,ni=m%12,ib=!!BP[ni];if(!ib)wc++;ks.push({m:m,ni:ni,ib:ib});}
+  kb.style.width=(wc*WW)+'px';
+  var wx=0;
+  ks.forEach(function(k){
+    var el=document.createElement('div');el.dataset.m=k.m;
+    if(!k.ib){
+      el.className='wk';el.style.cssText='left:'+wx+'px;width:'+WW+'px;height:'+WH+'px;';
+      if(NN[k.ni]==='C'){var lb=document.createElement('span');lb.className='k-lbl';lb.textContent='C'+(Math.floor(k.m/12)-1);el.appendChild(lb);}
+      wx+=WW;
+    } else {
+      el.className='bk';el.style.cssText='left:'+(wx-BW*.6)+'px;width:'+BW+'px;height:'+BH+'px;top:0;';
+    }
+    el.addEventListener('touchstart',function(e){e.preventDefault();kDn(k.m);},{passive:false});
+    el.addEventListener('touchend',function(e){e.preventDefault();kUp(k.m);},{passive:false});
+    el.addEventListener('mousedown',function(e){e.preventDefault();kDn(k.m);});
+    el.addEventListener('mouseup',function(){kUp(k.m);});
+    el.addEventListener('mouseleave',function(){if(aN[k.m+tr])kUp(k.m);});
+    kb.appendChild(el);
+  });
+}
+function kDn(m){var f=m+tr;if(f>=0&&f<=127)nOn(f,vel,false);}
+function kUp(m){nOf(m+tr);document.getElementById('noteTxt').textContent='— speel een toets —';}
+
+var BANKS=[[
+  {n:'Kick',m:36,c:'#c0392b'},{n:'Snare',m:38,c:'#8b6f3a'},{n:'Hi-Hat',m:42,c:'#2980b9'},{n:'Open HH',m:46,c:'#27ae60'},
+  {n:'Tom L',m:41,c:'#8e44ad'},{n:'Tom H',m:50,c:'#d35400'},{n:'Crash',m:49,c:'#c0392b'},{n:'Ride',m:51,c:'#16a085'}
+],[
+  {n:'Clap',m:39,c:'#e67e22'},{n:'Rim',m:37,c:'#2c3e50'},{n:'Tamb',m:54,c:'#8e44ad'},{n:'Cowbell',m:56,c:'#c0392b'},
+  {n:'Tom M',m:45,c:'#27ae60'},{n:'Perc1',m:60,c:'#2980b9'},{n:'Perc2',m:61,c:'#d35400'},{n:'Splash',m:55,c:'#16a085'}
+]];
+function buildPads(){
+  var g=document.getElementById('padsG');g.innerHTML='';
+  BANKS[bank].forEach(function(s,i){
+    var p=document.createElement('div');p.className='pad';
+    var bg=document.createElement('div');bg.className='pad-bg';bg.style.background=s.c;p.appendChild(bg);
+    var nm=document.createElement('span');nm.className='pad-name';nm.textContent=s.n;p.appendChild(nm);
+    var nb=document.createElement('span');nb.className='pad-n';nb.textContent=(bank*8+i+1);p.appendChild(nb);
+    p.addEventListener('touchstart',function(e){e.preventDefault();padHit(p,s.m);},{passive:false});
+    p.addEventListener('mousedown',function(){padHit(p,s.m);});
+    g.appendChild(p);
+  });
+}
+function chBank(){bank=bank?0:1;document.getElementById('bankBtn').textContent=bank?'Bank 9–16':'Bank 1–8';buildPads();}
+function padHit(p,m){iA();rA();p.classList.add('hit');setTimeout(function(){p.classList.remove('hit');},110);pDrum(m);flash();}
+function pDrum(m){
+  if(!aC)return;var now=aC.currentTime,g=aC.createGain();g.connect(mG);
+  if(m===36){var o=aC.createOscillator();o.type='sine';o.frequency.setValueAtTime(160,now);o.frequency.exponentialRampToValueAtTime(40,now+.15);g.gain.setValueAtTime(vol,now);g.gain.exponentialRampToValueAtTime(.001,now+.35);o.connect(g);o.start(now);o.stop(now+.36);}
+  else if(m===38||m===39){var b=aC.createBuffer(1,Math.floor(aC.sampleRate*.25),aC.sampleRate),d=b.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length)*.8;var s=aC.createBufferSource();s.buffer=b;var f=aC.createBiquadFilter();f.type='bandpass';f.frequency.value=2000;f.Q.value=.5;s.connect(f);f.connect(g);g.gain.setValueAtTime(vol*.75,now);g.gain.exponentialRampToValueAtTime(.001,now+.25);s.start(now);}
+  else if(m===42||m===46||m===55){var b=aC.createBuffer(1,Math.floor(aC.sampleRate*.15),aC.sampleRate),d=b.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=Math.random()*2-1;var s=aC.createBufferSource();s.buffer=b;var f=aC.createBiquadFilter();f.type='highpass';f.frequency.value=m===46?7000:10000;s.connect(f);f.connect(g);var dr=m===46?.2:.06;g.gain.setValueAtTime(vol*.45,now);g.gain.exponentialRampToValueAtTime(.001,now+dr);s.start(now);}
+  else if(m===49||m===51||m===57){var b=aC.createBuffer(1,Math.floor(aC.sampleRate*.6),aC.sampleRate),d=b.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length*.8);var s=aC.createBufferSource();s.buffer=b;var f=aC.createBiquadFilter();f.type='bandpass';f.frequency.value=m===51?5000:3500;f.Q.value=.3;s.connect(f);f.connect(g);g.gain.setValueAtTime(vol*.5,now);g.gain.exponentialRampToValueAtTime(.001,now+.6);s.start(now);}
+  else{var bf=40+(m-36)*6,o=aC.createOscillator();o.type='sine';o.frequency.setValueAtTime(bf*2,now);o.frequency.exponentialRampToValueAtTime(bf,now+.08);g.gain.setValueAtTime(vol*.7,now);g.gain.exponentialRampToValueAtTime(.001,now+.3);o.connect(g);o.start(now);o.stop(now+.32);}
+}
+
+function setModel(n){
+  mdl=n;['25','49','61','88'].forEach(function(x){document.getElementById('m'+x).classList.toggle('mon',+x===n);});
+  var c=MC[n],s=c.s+octOff*12;buildKB(c.n,s);allOf();updOct(s);
+}
+function chOct(d){octOff=Math.max(-3,Math.min(3,octOff+d));var c=MC[mdl],s=c.s+octOff*12;buildKB(c.n,s);allOf();updOct(s);}
+function updOct(s){document.getElementById('octV').textContent=NN[((s%12)+12)%12]+(Math.floor(s/12)-1);}
+function chTr(d){tr=Math.max(-12,Math.min(12,tr+d));document.getElementById('trV').textContent=(tr>0?'+':'')+tr;}
+function chVol(v){vol=v/100;if(mG)mG.gain.value=vol;document.getElementById('volV').textContent=v;}
+function setInstr(v){instr=+v;allOf();}
+function chSus(){sus=!sus;document.getElementById('susBtn').classList.toggle('on',sus);if(!sus){Object.keys(susH).forEach(function(n){nOf(+n,true);});susH={};}}
+
+function sS(e,t){e.preventDefault();sDr[t]=true;sM(e,t);}
+function sM(e,t){
+  if(!sDr[t])return;
+  var el=document.getElementById(t==='p'?'pitchS':'modS'),r=el.getBoundingClientRect();
+  var cy=e.touches?e.touches[0].clientY:e.clientY;
+  var ratio=Math.max(0,Math.min(1,(r.bottom-cy)/r.height));
+  if(t==='p'){pb=(ratio-.5)*4;document.getElementById('pitchF').style.height=(ratio*100)+'%';}
+  else{document.getElementById('modF').style.height=(ratio*100)+'%';}
+}
+function sE(e,t){sDr[t]=false;if(t==='p'){pb=0;document.getElementById('pitchF').style.height='50%';}}
+document.addEventListener('mouseup',function(){sDr={};});
+document.addEventListener('mousemove',function(e){if(sDr.p)sM(e,'p');if(sDr.m)sM(e,'m');});
+
+var KBM={'a':'C','w':'C#','s':'D','e':'D#','d':'E','f':'F','t':'F#','g':'G','y':'G#','h':'A','u':'A#','j':'B','k':'C2','o':'C#2','l':'D2','p':'D#2'};
+var kbP={};
+document.addEventListener('keydown',function(e){
+  if(e.repeat||['SELECT','INPUT'].includes(e.target.tagName))return;
+  if(e.key===' '){e.preventDefault();chSus();return;}
+  var no=KBM[e.key.toLowerCase()];if(!no||kbP[e.key])return;kbP[e.key]=true;
+  var is2=no.endsWith('2'),nm=is2?no.slice(0,-1):no,ni=NN.indexOf(nm);if(ni<0)return;
+  var s=MC[mdl].s+octOff*12,bo=Math.floor(s/12)-1,mn=(bo+(is2?2:1))*12+ni+tr;
+  if(mn>=0&&mn<=127)nOn(mn,vel,false);
+});
+document.addEventListener('keyup',function(e){
+  var no=KBM[e.key.toLowerCase()];if(!no)return;delete kbP[e.key];
+  var is2=no.endsWith('2'),nm=is2?no.slice(0,-1):no,ni=NN.indexOf(nm);if(ni<0)return;
+  var s=MC[mdl].s+octOff*12,bo=Math.floor(s/12)-1,mn=(bo+(is2?2:1))*12+ni+tr;
+  nOf(mn);document.getElementById('noteTxt').textContent='— speel een toets —';
+});
+
+var mAcc=null,mIns=[],actIn=null;
+async function initMidi(){
+  var b=document.getElementById('midiBadge'),l=document.getElementById('midiLbl');
+  if(!navigator.requestMIDIAccess){b.className='midi-badge err';l.textContent='MIDI: niet ondersteund';return;}
+  try{
+    mAcc=await navigator.requestMIDIAccess({sysex:false});
+    mAcc.onstatechange=updMidi;updMidi();
+  }catch(ex){b.className='midi-badge err';l.textContent='MIDI: geweigerd';}
+}
+function updMidi(){
+  if(!mAcc)return;
+  mIns=[];mAcc.inputs.forEach(function(i){mIns.push(i);});
+  var b=document.getElementById('midiBadge'),l=document.getElementById('midiLbl'),
+      bar=document.getElementById('midiBar'),sel=document.getElementById('midiSel'),
+      inf=document.getElementById('midiInfo');
+  mIns.forEach(function(i){i.onmidimessage=null;});
+  if(mIns.length===0){b.className='midi-badge';l.textContent='MIDI: geen apparaat';bar.classList.remove('show');actIn=null;return;}
+  sel.innerHTML='<option value="">— kies MIDI apparaat —</option>';
+  mIns.forEach(function(inp,i){var o=document.createElement('option');o.value=i;o.textContent=inp.name;sel.appendChild(o);});
+  bar.classList.add('show');
+  var idx=mIns.findIndex(function(d){return d.name.toLowerCase().includes('versa')||d.name.toLowerCase().includes('devine');});
+  if(idx<0)idx=0;sel.value=idx;pickMidi(idx);
+}
+function scanMidi(){updMidi();}
+function pickMidi(idx){
+  mIns.forEach(function(i){i.onmidimessage=null;});actIn=null;
+  document.getElementById('midiInfo').textContent='';
+  if(idx===''||idx===null||idx===undefined)return;
+  var inp=mIns[parseInt(idx)];if(!inp)return;
+  actIn=inp;inp.onmidimessage=onMidi;
+  document.getElementById('midiBadge').className='midi-badge ok';
+  document.getElementById('midiLbl').textContent=inp.name.length>22?inp.name.slice(0,20)+'…':inp.name;
+  document.getElementById('midiInfo').textContent='verbonden';
+  document.getElementById('devTxt').textContent=inp.name;
+}
+function onMidi(ev){
+  var cmd=ev.data[0]&0xF0,d1=ev.data[1],d2=ev.data[2];
+  iA();rA();
+  if(cmd===0x90&&d2>0){var f=d1+tr;if(f>=0&&f<=127)nOn(f,d2,true);}
+  else if(cmd===0x80||(cmd===0x90&&d2===0)){nOf(d1+tr);document.getElementById('noteTxt').textContent='— speel een toets —';}
+  else if(cmd===0xB0){
+    if(d1===64){sus=d2>=64;document.getElementById('susBtn').classList.toggle('on',sus);if(!sus){Object.keys(susH).forEach(function(n){nOf(+n,true);});susH={};}}
+    else if(d1===1){document.getElementById('modF').style.height=(d2/127*100)+'%';}
+    else if(d1===7){var v=Math.round(d2/127*100);vol=v/100;if(mG)mG.gain.value=vol;}
+  }
+  else if(cmd===0xE0){var bend=((d2<<7)|d1)-8192;pb=(bend/8192)*2;document.getElementById('pitchF').style.height=(((bend+8192)/16384)*100)+'%';}
+  flash();
+}
+var ledT;
+function flash(){var l=document.getElementById('led');l.classList.add('f');clearTimeout(ledT);ledT=setTimeout(function(){l.classList.remove('f');},120);}
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});
+}
+
+buildPads();
+setModel(49);
+initMidi();
+</script>
+</body>
+</html>

@@ -1,808 +1,1507 @@
 <!DOCTYPE html>
+<!-- ============================================================
+     Devine VersaKey — MIDI Controller App
+     VERSIE : 2.0.0
+     DATUM  : 2026-04-05
+     DOEL   : PWA voor Windows, Android, Chrome/Edge via USB-MIDI
+     
+     CHANGELOG v2.0.0 (t.o.v. v1.x):
+     - AudioKit J6 sectie verwijderd (niet verder ontwikkeld)
+     - Dubbele HTML-code verwijderd (was 2x dezelfde app in 1 bestand)
+     - USB-MIDI verbinding verbeterd voor Chrome op Windows/Android
+     - Inline uitleg toegevoegd bij elke coderegel
+     - Versie-badge toegevoegd in de topbar
+     - MIDI-apparaat automatisch herkend (VersaKey/Devine)
+     - Foutmelding in het Nederlands bij geen MIDI-toegang
+     ============================================================ -->
 <html lang="nl">
 <head>
+
+<!-- Vertel de browser welke tekens we gebruiken (altijd UTF-8) -->
 <meta charset="UTF-8">
+
+<!-- Zorg dat de app goed past op telefoons en tablets, niet zoombaar -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="VersaKey">
-<meta name="theme-color" content="#f0ebe0">
-<title>Devine VersaKey — MIDI Controller</title>
-<link rel="manifest" href="manifest.json">
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
-:root{--bg:#f0ebe0;--surface:#e8e2d4;--surface2:#ddd8cc;--surface3:#ccc6b8;--accent:#8b6f3a;--text:#2a2520;--muted:#7a7060;--dim:#b0a898;--border:rgba(139,111,58,.18);--wk:#faf8f3;--wkh:#fff9ee;--wka:#BA7517;--bk:#1c1a18;--bka:#854F0B;--ok:#2d7a3a;--err:#a33030;--j6bg:#0d1117;--j6blue:#58a6ff;--j6green:#3fb950;--j6text:#c9d1d9;--j6dim:#484f58;}
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:none;user-select:none;}
-body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
-.topbar{display:flex;align-items:center;gap:7px;padding:7px 14px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
-.logo{display:flex;align-items:center;gap:8px;flex-shrink:0;}
-.logo-dot{width:24px;height:24px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;}
-.logo-dot::after{content:'';width:8px;height:8px;border-radius:50%;background:var(--bg);}
-.logo-text{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.07em;}
-.logo-sub{font-size:9px;color:var(--muted);}
-.sep{width:1px;height:16px;background:var(--border);flex-shrink:0;}
-.lbl{font-size:10px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;font-family:'Space Mono',monospace;white-space:nowrap;}
-.val{font-size:11px;color:var(--accent);font-family:'Space Mono',monospace;min-width:22px;text-align:center;}
-.btn{padding:3px 7px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:11px;cursor:pointer;transition:all .12s;white-space:nowrap;}
-.btn:hover{background:var(--surface2);border-color:var(--accent);}
-.btn:active{transform:scale(.93);}
-.btn.on{background:var(--accent);color:#fff;border-color:var(--accent);}
-.btn.mon{background:rgba(139,111,58,.15);color:var(--accent);border-color:var(--accent);font-weight:600;}
-.sel{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 7px;border-radius:6px;font-size:11px;outline:none;cursor:pointer;max-width:135px;touch-action:auto;}
-.rng{-webkit-appearance:none;height:3px;border-radius:2px;background:var(--surface3);outline:none;width:60px;accent-color:var(--accent);}
-.rng::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid var(--bg);}
-.midi-badge{display:flex;align-items:center;gap:5px;padding:3px 8px;border-radius:20px;border:1px solid var(--border);background:var(--bg);font-size:10px;font-family:'Space Mono',monospace;color:var(--muted);cursor:pointer;white-space:nowrap;flex-shrink:0;}
-.midi-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--dim);transition:background .3s;flex-shrink:0;}
-.midi-badge.ok .dot{background:var(--ok);box-shadow:0 0 4px var(--ok);}
-.midi-badge.ok{color:var(--ok);}
-.midi-badge.err .dot{background:var(--err);}
-.j6-section{background:var(--j6bg);border-bottom:1px solid rgba(88,166,255,.2);flex-shrink:0;padding:7px 14px 8px;}
-.j6-header{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
-.j6-dot{width:7px;height:7px;border-radius:50%;background:var(--j6dim);transition:all .15s;flex-shrink:0;}
-.j6-dot.on{background:var(--j6green);box-shadow:0 0 5px var(--j6green);}
-.j6-title{font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:var(--j6blue);letter-spacing:.07em;}
-.j6-sub{font-size:10px;color:var(--j6dim);}
-.j6-hint{font-size:9px;color:rgba(88,166,255,.4);font-family:'Space Mono',monospace;margin-left:auto;}
-.j6-params{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;}
-.j6p{display:flex;flex-direction:column;gap:2px;}
-.j6p-top{display:flex;justify-content:space-between;align-items:baseline;}
-.j6p-name{font-size:9px;color:var(--j6text);font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.j6p-val{font-size:9px;color:var(--j6blue);font-family:'Space Mono',monospace;min-width:20px;text-align:right;}
-.j6p-track{height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden;}
-.j6p-fill{height:100%;border-radius:2px;background:var(--j6blue);transition:width .06s;}
-.j6p-fill.pulse{background:var(--j6green);}
-.j6p-cc{font-size:8px;color:var(--j6dim);font-family:'Space Mono',monospace;}
-.j6-devbar{display:none;align-items:center;gap:6px;margin-top:6px;padding-top:5px;border-top:1px solid rgba(88,166,255,.1);}
-.j6-devbar.show{display:flex;}
-.j6-devsel{background:rgba(255,255,255,.06);border:1px solid rgba(88,166,255,.15);color:var(--j6text);padding:2px 7px;border-radius:5px;font-size:10px;outline:none;cursor:pointer;flex:1;max-width:220px;touch-action:auto;}
-.j6-devinfo{font-size:9px;color:var(--j6dim);font-family:'Space Mono',monospace;}
-.pads-bar{display:flex;align-items:center;gap:8px;padding:6px 14px;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
-.pads-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;flex:1;min-width:0;}
-.pad{height:38px;border-radius:5px;border:1px solid rgba(0,0,0,.1);background:var(--surface);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;transition:all .08s;position:relative;overflow:hidden;touch-action:none;box-shadow:0 1px 3px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.5);}
-.pad-bg{position:absolute;inset:0;opacity:.16;transition:opacity .08s;}
-.pad:hover .pad-bg{opacity:.28;}
-.pad.hit{transform:scale(.89);}
-.pad.hit .pad-bg{opacity:.65;}
-.pad-name{font-size:8px;font-weight:600;color:var(--text);position:relative;z-index:1;text-align:center;font-family:'Space Mono',monospace;}
-.pad-n{font-size:7px;color:var(--muted);position:relative;z-index:1;}
-.midi-bar{display:none;align-items:center;gap:6px;padding:4px 14px;background:rgba(45,122,58,.06);border-bottom:1px solid rgba(45,122,58,.15);}
-.midi-bar.show{display:flex;}
-.midi-sel{background:var(--bg);border:1px solid rgba(45,122,58,.25);color:var(--text);padding:2px 7px;border-radius:5px;font-size:11px;outline:none;cursor:pointer;flex:1;max-width:240px;touch-action:auto;}
-.kb-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:8px 14px 6px;overflow:hidden;}
-.kb-area{display:flex;align-items:flex-end;width:100%;justify-content:center;}
-.kb-scroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:var(--surface3) transparent;}
-.kb-scroll::-webkit-scrollbar{height:3px;}
-.kb-scroll::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px;}
-.keyboard{position:relative;display:inline-block;}
-.wk{position:absolute;bottom:0;background:var(--wk);border:1px solid #c8bfb0;border-radius:0 0 3px 3px;cursor:pointer;z-index:1;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px;box-shadow:0 2px 4px rgba(0,0,0,.1);touch-action:none;}
-.wk:hover{background:var(--wkh);}
-.wk.on{background:var(--wka)!important;}
-.bk{position:absolute;top:0;background:linear-gradient(to bottom,#2a2820,var(--bk));border:1px solid #000;border-radius:0 0 3px 3px;cursor:pointer;z-index:2;box-shadow:2px 3px 5px rgba(0,0,0,.4);touch-action:none;}
-.bk:hover{background:linear-gradient(to bottom,#3a3830,#2e2c28);}
-.bk.on{background:var(--bka)!important;}
-.k-lbl{font-size:8px;color:#999;font-family:'Space Mono',monospace;}
-.strips{display:flex;gap:5px;margin-right:8px;flex-shrink:0;padding-bottom:18px;}
-.strip{width:19px;height:145px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;position:relative;overflow:hidden;cursor:ns-resize;touch-action:none;}
-.sf{position:absolute;bottom:0;left:0;right:0;border-radius:0 0 9px 9px;transition:height .04s;}
-.pf{background:#3b82f6;}
-.mf{background:var(--accent);}
-.s-lbl{font-size:8px;color:var(--muted);text-align:center;margin-top:2px;font-family:'Space Mono',monospace;text-transform:uppercase;}
-.note-bar{display:flex;align-items:center;justify-content:space-between;padding:4px 14px;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;}
-.note-txt{font-size:10px;font-family:'Space Mono',monospace;color:var(--muted);}
-.led{width:6px;height:6px;border-radius:50%;background:var(--dim);transition:all .05s;}
-.led.f{background:var(--ok);box-shadow:0 0 5px var(--ok);}
-@media(max-width:650px){.pads-grid{grid-template-columns:repeat(4,1fr);}.j6-params{grid-template-columns:repeat(3,1fr);}.rng{width:48px;}.sel{max-width:105px;}}
-</style>
-</head>
-<body>
 
-<div class="topbar">
-  <div class="logo"><div class="logo-dot"></div><div><div class="logo-text">DEVINE</div><div class="logo-sub">VersaKey Series</div></div></div>
-  <div class="sep"></div>
-  <span class="lbl">Model</span>
-  <button class="btn" id="m25" onclick="setModel(25)">VK-25</button>
-  <button class="btn mon" id="m49" onclick="setModel(49)">VK-49</button>
-  <button class="btn" id="m61" onclick="setModel(61)">VK-61</button>
-  <button class="btn" id="m88" onclick="setModel(88)">VK-88</button>
-  <div class="sep"></div>
-  <span class="lbl">Geluid</span>
-  <select class="sel" id="instrSel" onchange="setInstr(this.value)">
-    <optgroup label="Piano"><option value="0" selected>Grand Piano</option><option value="1">Bright Piano</option><option value="2">Electric Grand</option><option value="4">E-Piano 1</option><option value="5">E-Piano 2</option><option value="6">Harpsichord</option></optgroup>
-    <optgroup label="Organ"><option value="16">Drawbar Organ</option><option value="18">Rock Organ</option><option value="19">Church Organ</option></optgroup>
-    <optgroup label="Guitar"><option value="24">Nylon Guitar</option><option value="25">Steel Guitar</option><option value="30">Dist. Guitar</option></optgroup>
-    <optgroup label="Strings"><option value="40">Violin</option><option value="48">Strings 1</option></optgroup>
-    <optgroup label="Brass"><option value="56">Trumpet</option><option value="61">Brass Section</option></optgroup>
-    <optgroup label="Synth"><option value="80">Syn Square</option><option value="81">Syn Saw</option><option value="88">New Age Pad</option><option value="89">Warm Pad</option></optgroup>
-    <optgroup label="Bass"><option value="32">Acoustic Bass</option><option value="33">Fingered Bass</option><option value="38">Synth Bass</option></optgroup>
-  </select>
-  <div class="sep"></div>
-  <span class="lbl">Oct</span>
-  <button class="btn" onclick="chOct(-1)">-</button>
-  <span class="val" id="octV">C2</span>
-  <button class="btn" onclick="chOct(1)">+</button>
-  <div class="sep"></div>
-  <span class="lbl">Transp</span>
-  <button class="btn" onclick="chTr(-1)">-</button>
-  <span class="val" id="trV">0</span>
-  <button class="btn" onclick="chTr(1)">+</button>
-  <div class="sep"></div>
-  <span class="lbl">Vol</span>
-  <input type="range" class="rng" min="0" max="100" value="80" step="1" oninput="chVol(this.value)">
-  <span class="val" id="volV">80</span>
-  <div class="sep"></div>
-  <button class="btn" id="susBtn" onclick="chSus()">Sustain</button>
-  <div class="sep"></div>
-  <div class="midi-badge" id="midiBadge" onclick="scanMidi()"><div class="dot"></div><span id="midiLbl">MIDI scannen</span></div>
-</div>
-
-<div class="j6-section">
-  <div class="j6-header">
-    <div class="j6-dot" id="j6dot"></div>
-    <span class="j6-title">SYNTH ONE J6</span>
-    <span class="j6-sub">&nbsp;VersaKey 49 CC Sync</span>
-    <span class="j6-hint">Draai R1-R8 om te synchroniseren</span>
-  </div>
-  <div class="j6-params" id="j6params"></div>
-  <div class="j6-devbar" id="j6devbar">
-    <span class="j6-devinfo">MIDI OUT naar J6:</span>
-    <select class="j6-devsel" id="j6devsel" onchange="pickOut(this.value)"><option value="">-- kies output --</option></select>
-    <span class="j6-devinfo" id="j6devinfo"></span>
-  </div>
-</div>
-
-<div class="pads-bar">
-  <span class="lbl">Drum Pads</span>
-  <div class="pads-grid" id="padsG"></div>
-  <button class="btn" id="bankBtn" onclick="chBank()" style="flex-shrink:0;margin-left:4px;">Bank 1-8</button>
-</div>
-
-<div class="midi-bar" id="midiBar">
-  <span style="font-size:10px;color:var(--ok);font-family:'Space Mono',monospace;">VersaKey IN:</span>
-  <select class="midi-sel" id="midiSel" onchange="pickIn(this.value)"></select>
-  <span style="font-size:10px;color:var(--muted);font-family:'Space Mono',monospace;" id="midiInfo"></span>
-</div>
-
-<div class="kb-wrap">
-  <div class="kb-area">
-    <div class="strips">
-      <div>
-        <div class="strip" id="pitchS" ontouchstart="sS(event,'p')" ontouchmove="sM(event,'p')" ontouchend="sE(event,'p')" onmousedown="sS(event,'p')"><div class="sf pf" id="pitchF" style="height:50%"></div></div>
-        <div class="s-lbl">Pitch</div>
-      </div>
-      <div>
-        <div class="strip" id="modS" ontouchstart="sS(event,'m')" ontouchmove="sM(event,'m')" ontouchend="sE(event,'m')" onmousedown="sS(event,'m')"><div class="sf mf" id="modF" style="height:0%"></div></div>
-        <div class="s-lbl">Mod</div>
-      </div>
-    </div>
-    <div class="kb-scroll"><div class="keyboard" id="kb"></div></div>
-  </div>
-</div>
-
-<div class="note-bar">
-  <span class="note-txt" id="noteTxt">-- speel een toets --</span>
-  <div class="led" id="led"></div>
-  <span class="note-txt" id="devTxt" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
-</div>
-
-<script>
-var J6MAP=[
-  {name:'Cutoff',  cc:74,knob:'R1',val:64},
-  {name:'Rez',     cc:71,knob:'R2',val:64},
-  {name:'LFO Rate',cc:21,knob:'R3',val:64},
-  {name:'LFO Depth',cc:22,knob:'R4',val:64},
-  {name:'Attack',  cc:73,knob:'R5',val:0},
-  {name:'Release', cc:72,knob:'R6',val:64},
-  {name:'Decay',   cc:18,knob:'R7',val:64},
-  {name:'Volume',  cc:7, knob:'R8',val:100},
-  {name:'Sustain', cc:70,knob:'--',val:64},
-  {name:'Chorus',  cc:93,knob:'Mod',val:0},
-];
-var NN=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-var BP=[0,1,0,1,0,0,1,0,1,0,1,0];
-var MC={25:{s:48,n:25},49:{s:36,n:49},61:{s:36,n:61},88:{s:21,n:88}};
-var WW=34,WH=150,BW=21,BH=92;
-var mdl=49,octOff=0,tr=0,instr=0,vol=.8,vel=90,sus=false,bank=0,pb=0;
-var aN={},susH={},sDr={};
-var aC=null,mG=null;
-var mAcc=null,mIns=[],mOuts=[],actIn=null,actOut=null;
-
-function buildJ6(){
-  var g=document.getElementById('j6params');g.innerHTML='';
-  J6MAP.forEach(function(p,i){
-    var d=document.createElement('div');d.className='j6p';
-    d.innerHTML='<div class="j6p-top"><span class="j6p-name">'+p.name+'</span><span class="j6p-val" id="jv'+i+'">'+p.val+'</span></div><div class="j6p-track"><div class="j6p-fill" id="jf'+i+'" style="width:'+(p.val/127*100)+'%"></div></div><div class="j6p-cc">CC'+p.cc+' '+p.knob+'</div>';
-    g.appendChild(d);
-  });
-}
-var j6FT;
-function j6Update(cc,val){
-  for(var i=0;i<J6MAP.length;i++){
-    if(J6MAP[i].cc===cc){
-      J6MAP[i].val=val;
-      var f=document.getElementById('jf'+i),v=document.getElementById('jv'+i);
-      if(f){f.style.width=(val/127*100)+'%';f.classList.add('pulse');setTimeout(function(x){return function(){var el=document.getElementById('jf'+x);if(el)el.classList.remove('pulse');};}(i),400);}
-      if(v)v.textContent=val;
-      var d=document.getElementById('j6dot');d.classList.add('on');clearTimeout(j6FT);j6FT=setTimeout(function(){d.classList.remove('on');},250);
-      break;
-    }
-  }
-}
-function sendCC(cc,val,ch){if(!actOut)return;ch=ch||0;try{actOut.send([0xB0|ch,cc,Math.max(0,Math.min(127,val))]);}catch(e){}}
-function sendNoteOn(m,v,ch){if(!actOut)return;ch=ch||0;try{actOut.send([0x90|ch,m,v]);}catch(e){}}
-function sendNoteOff(m,ch){if(!actOut)return;ch=ch||0;try{actOut.send([0x80|ch,m,0]);}catch(e){}}
-function sendPB(ratio){if(!actOut)return;var v=Math.round(ratio*16383);v=Math.max(0,Math.min(16383,v));try{actOut.send([0xE0,v&0x7F,(v>>7)&0x7F]);}catch(e){}}
-
-function iA(){if(aC)return;aC=new(window.AudioContext||window.webkitAudioContext)();mG=aC.createGain();mG.gain.value=vol;mG.connect(aC.destination);}
-function rA(){if(aC&&aC.state==='suspended')aC.resume();}
-var PRF={pi:{t:'triangle',a:.005,d:.3,s:.4,r:.8,h:[1,.5,.25,.12,.06],dt:0},or:{t:'sine',a:.01,d:0,s:1,r:.1,h:[1,.8,.6,.3],dt:0},gu:{t:'sawtooth',a:.003,d:.15,s:.3,r:.4,h:[1,.6,.3,.15],dt:2},st:{t:'sawtooth',a:.09,d:.1,s:.8,r:.6,h:[1,.7,.3,.1],dt:6},br:{t:'sawtooth',a:.04,d:.08,s:.9,r:.2,h:[1,.6,.4,.2],dt:3},sy:{t:'sawtooth',a:.01,d:.1,s:.7,r:.3,h:[1,.5,.33,.25],dt:0},ba:{t:'triangle',a:.005,d:.2,s:.5,r:.3,h:[1,.8,.2,.08],dt:1},pa:{t:'sine',a:.22,d:.1,s:.9,r:.9,h:[1,.6,.3,.15],dt:9}};
-function gP(i){i=+i;if(i<=7)return PRF.pi;if(i>=16&&i<=23)return PRF.or;if(i>=24&&i<=31)return PRF.gu;if(i>=32&&i<=39)return PRF.ba;if(i>=40&&i<=55)return PRF.st;if(i>=56&&i<=63)return PRF.br;if(i>=80&&i<=87)return PRF.sy;if(i>=88&&i<=95)return PRF.pa;return PRF.pi;}
-function m2f(n){return 440*Math.pow(2,(n-69)/12);}
-function nOn(mn,v,hw){
-  iA();rA();nOf(mn,true);
-  var p=gP(instr),freq=m2f(mn)*Math.pow(2,pb/12),vv=(v/127)*vol;
-  var g=aC.createGain(),now=aC.currentTime;
-  var fl=aC.createBiquadFilter();fl.type='lowpass';fl.frequency.value=Math.min(3800+mn*32,17000);fl.Q.value=.7;fl.connect(g);g.connect(mG);
-  g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(vv,now+p.a);g.gain.linearRampToValueAtTime(vv*p.s,now+p.a+p.d);
-  var os=p.h.map(function(amp,i){var o=aC.createOscillator(),hg=aC.createGain();o.type=p.t;o.frequency.value=freq*(i+1);o.detune.value=(i%2?1:-1)*p.dt*i;hg.gain.value=amp;o.connect(hg);hg.connect(fl);o.start(now);return o;});
-  aN[mn]={g:g,os:os,p:p};kviz(mn,true);flash();
-  document.getElementById('noteTxt').textContent=(hw?'[HW] ':'')+NN[mn%12]+(Math.floor(mn/12)-1)+' MIDI '+mn;
-}
-function nOf(mn,force){
-  if(!aN[mn])return;if(sus&&!force){susH[mn]=true;return;}
-  var x=aN[mn],now=aC?aC.currentTime:0;
-  x.g.gain.cancelScheduledValues(now);x.g.gain.setValueAtTime(x.g.gain.value,now);x.g.gain.linearRampToValueAtTime(0,now+x.p.r);
-  x.os.forEach(function(o){try{o.stop(now+x.p.r+.05);}catch(e){}});
-  delete aN[mn];kviz(mn,false);
-}
-function allOf(){Object.keys(aN).forEach(function(n){nOf(+n,true);});susH={};}
-function kviz(mn,on){var e=document.querySelector('[data-m="'+(mn-tr)+'"]');if(e)e.classList.toggle('on',on);}
-
-function buildKB(n,s){
-  var kb=document.getElementById('kb');kb.innerHTML='';kb.style.height=WH+'px';
-  var wc=0,ks=[];
-  for(var i=0;i<n;i++){var m=s+i,ni=m%12,ib=!!BP[ni];if(!ib)wc++;ks.push({m:m,ni:ni,ib:ib});}
-  kb.style.width=(wc*WW)+'px';
-  var wx=0;
-  ks.forEach(function(k){
-    var el=document.createElement('div');el.dataset.m=k.m;
-    if(!k.ib){el.className='wk';el.style.cssText='left:'+wx+'px;width:'+WW+'px;height:'+WH+'px;';if(NN[k.ni]==='C'){var lb=document.createElement('span');lb.className='k-lbl';lb.textContent='C'+(Math.floor(k.m/12)-1);el.appendChild(lb);}wx+=WW;}
-    else{el.className='bk';el.style.cssText='left:'+(wx-BW*.6)+'px;width:'+BW+'px;height:'+BH+'px;top:0;';}
-    el.addEventListener('touchstart',function(e){e.preventDefault();kDn(k.m);},{passive:false});
-    el.addEventListener('touchend',function(e){e.preventDefault();kUp(k.m);},{passive:false});
-    el.addEventListener('mousedown',function(e){e.preventDefault();kDn(k.m);});
-    el.addEventListener('mouseup',function(){kUp(k.m);});
-    el.addEventListener('mouseleave',function(){if(aN[k.m+tr])kUp(k.m);});
-    kb.appendChild(el);
-  });
-}
-function kDn(m){var f=m+tr;if(f>=0&&f<=127){nOn(f,vel,false);sendNoteOn(f,vel);}}
-function kUp(m){var f=m+tr;nOf(f);sendNoteOff(f);document.getElementById('noteTxt').textContent='-- speel een toets --';}
-
-var BANKS=[[{n:'Kick',m:36,c:'#c0392b'},{n:'Snare',m:38,c:'#8b6f3a'},{n:'Hi-Hat',m:42,c:'#2980b9'},{n:'Open HH',m:46,c:'#27ae60'},{n:'Tom L',m:41,c:'#8e44ad'},{n:'Tom H',m:50,c:'#d35400'},{n:'Crash',m:49,c:'#c0392b'},{n:'Ride',m:51,c:'#16a085'}],[{n:'Clap',m:39,c:'#e67e22'},{n:'Rim',m:37,c:'#2c3e50'},{n:'Tamb',m:54,c:'#8e44ad'},{n:'Cowbell',m:56,c:'#c0392b'},{n:'Tom M',m:45,c:'#27ae60'},{n:'Perc1',m:60,c:'#2980b9'},{n:'Perc2',m:61,c:'#d35400'},{n:'Splash',m:55,c:'#16a085'}]];
-function buildPads(){
-  var g=document.getElementById('padsG');g.innerHTML='';
-  BANKS[bank].forEach(function(s,i){
-    var p=document.createElement('div');p.className='pad';
-    var bg=document.createElement('div');bg.className='pad-bg';bg.style.background=s.c;p.appendChild(bg);
-    var nm=document.createElement('span');nm.className='pad-name';nm.textContent=s.n;p.appendChild(nm);
-    var nb=document.createElement('span');nb.className='pad-n';nb.textContent=(bank*8+i+1);p.appendChild(nb);
-    p.addEventListener('touchstart',function(e){e.preventDefault();padHit(p,s.m);},{passive:false});
-    p.addEventListener('mousedown',function(){padHit(p,s.m);});
-    g.appendChild(p);
-  });
-}
-function chBank(){bank=bank?0:1;document.getElementById('bankBtn').textContent=bank?'Bank 9-16':'Bank 1-8';buildPads();}
-function padHit(pd,m){iA();rA();pd.classList.add('hit');setTimeout(function(){pd.classList.remove('hit');},110);pDrum(m);sendNoteOn(m,vel,9);flash();}
-function pDrum(m){
-  if(!aC)return;var now=aC.currentTime,g=aC.createGain();g.connect(mG);
-  if(m===36){var o=aC.createOscillator();o.type='sine';o.frequency.setValueAtTime(160,now);o.frequency.exponentialRampToValueAtTime(40,now+.15);g.gain.setValueAtTime(vol,now);g.gain.exponentialRampToValueAtTime(.001,now+.35);o.connect(g);o.start(now);o.stop(now+.36);}
-  else if(m===38||m===39){var b=aC.createBuffer(1,Math.floor(aC.sampleRate*.25),aC.sampleRate),d=b.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length)*.8;var s=aC.createBufferSource();s.buffer=b;var f=aC.createBiquadFilter();f.type='bandpass';f.frequency.value=2000;f.Q.value=.5;s.connect(f);f.connect(g);g.gain.setValueAtTime(vol*.75,now);g.gain.exponentialRampToValueAtTime(.001,now+.25);s.start(now);}
-  else if(m===42||m===46||m===55){var b=aC.createBuffer(1,Math.floor(aC.sampleRate*.15),aC.sampleRate),d=b.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=Math.random()*2-1;var s=aC.createBufferSource();s.buffer=b;var f=aC.createBiquadFilter();f.type='highpass';f.frequency.value=m===46?7000:10000;s.connect(f);f.connect(g);var dr=m===46?.2:.06;g.gain.setValueAtTime(vol*.45,now);g.gain.exponentialRampToValueAtTime(.001,now+dr);s.start(now);}
-  else{var bf=40+(m-36)*6,o=aC.createOscillator();o.type='sine';o.frequency.setValueAtTime(bf*2,now);o.frequency.exponentialRampToValueAtTime(bf,now+.08);g.gain.setValueAtTime(vol*.7,now);g.gain.exponentialRampToValueAtTime(.001,now+.3);o.connect(g);o.start(now);o.stop(now+.32);}
-}
-
-function setModel(n){mdl=n;['25','49','61','88'].forEach(function(x){document.getElementById('m'+x).classList.toggle('mon',+x===n);});var c=MC[n],s=c.s+octOff*12;buildKB(c.n,s);allOf();updOct(s);}
-function chOct(d){octOff=Math.max(-3,Math.min(3,octOff+d));var c=MC[mdl],s=c.s+octOff*12;buildKB(c.n,s);allOf();updOct(s);}
-function updOct(s){document.getElementById('octV').textContent=NN[((s%12)+12)%12]+(Math.floor(s/12)-1);}
-function chTr(d){tr=Math.max(-12,Math.min(12,tr+d));document.getElementById('trV').textContent=(tr>0?'+':'')+tr;}
-function chVol(v){vol=v/100;if(mG)mG.gain.value=vol;document.getElementById('volV').textContent=v;sendCC(7,Math.round(v/100*127));j6Update(7,Math.round(v/100*127));}
-function setInstr(v){instr=+v;allOf();}
-function chSus(){sus=!sus;document.getElementById('susBtn').classList.toggle('on',sus);sendCC(64,sus?127:0);if(!sus){Object.keys(susH).forEach(function(n){nOf(+n,true);});susH={};}}
-
-function sS(e,t){e.preventDefault();sDr[t]=true;sM(e,t);}
-function sM(e,t){
-  if(!sDr[t])return;
-  var el=document.getElementById(t==='p'?'pitchS':'modS'),r=el.getBoundingClientRect();
-  var cy=e.touches?e.touches[0].clientY:e.clientY;
-  var ratio=Math.max(0,Math.min(1,(r.bottom-cy)/r.height));
-  if(t==='p'){pb=(ratio-.5)*4;document.getElementById('pitchF').style.height=(ratio*100)+'%';sendPB(ratio);}
-  else{var mv=Math.round(ratio*127);document.getElementById('modF').style.height=(ratio*100)+'%';sendCC(1,mv);j6Update(93,mv);}
-}
-function sE(e,t){sDr[t]=false;if(t==='p'){pb=0;document.getElementById('pitchF').style.height='50%';sendPB(.5);}}
-document.addEventListener('mouseup',function(){sDr={};});
-document.addEventListener('mousemove',function(e){if(sDr.p)sM(e,'p');if(sDr.m)sM(e,'m');});
-
-var KBM={'a':'C','w':'C#','s':'D','e':'D#','d':'E','f':'F','t':'F#','g':'G','y':'G#','h':'A','u':'A#','j':'B','k':'C2','o':'C#2','l':'D2','p':'D#2'};
-var kbP={};
-document.addEventListener('keydown',function(e){
-  if(e.repeat||['SELECT','INPUT'].includes(e.target.tagName))return;
-  if(e.key===' '){e.preventDefault();chSus();return;}
-  var no=KBM[e.key.toLowerCase()];if(!no||kbP[e.key])return;kbP[e.key]=true;
-  var is2=no.endsWith('2'),nm=is2?no.slice(0,-1):no,ni=NN.indexOf(nm);if(ni<0)return;
-  var s=MC[mdl].s+octOff*12,bo=Math.floor(s/12)-1,mn=(bo+(is2?2:1))*12+ni+tr;
-  if(mn>=0&&mn<=127){nOn(mn,vel,false);sendNoteOn(mn,vel);}
-});
-document.addEventListener('keyup',function(e){
-  var no=KBM[e.key.toLowerCase()];if(!no)return;delete kbP[e.key];
-  var is2=no.endsWith('2'),nm=is2?no.slice(0,-1):no,ni=NN.indexOf(nm);if(ni<0)return;
-  var s=MC[mdl].s+octOff*12,bo=Math.floor(s/12)-1,mn=(bo+(is2?2:1))*12+ni+tr;
-  nOf(mn);sendNoteOff(mn);document.getElementById('noteTxt').textContent='-- speel een toets --';
-});
-
-async function initMidi(){
-  var b=document.getElementById('midiBadge'),l=document.getElementById('midiLbl');
-  if(!navigator.requestMIDIAccess){b.className='midi-badge err';l.textContent='MIDI: niet ondersteund';return;}
-  try{mAcc=await navigator.requestMIDIAccess({sysex:false});mAcc.onstatechange=updMidi;updMidi();}
-  catch(ex){b.className='midi-badge err';l.textContent='MIDI: geweigerd';}
-}
-function updMidi(){
-  if(!mAcc)return;
-  mIns=[];mAcc.inputs.forEach(function(i){mIns.push(i);});
-  mOuts=[];mAcc.outputs.forEach(function(o){mOuts.push(o);});
-  var b=document.getElementById('midiBadge'),l=document.getElementById('midiLbl');
-  var bar=document.getElementById('midiBar'),sel=document.getElementById('midiSel');
-  var j6bar=document.getElementById('j6devbar'),j6sel=document.getElementById('j6devsel');
-  mIns.forEach(function(i){i.onmidimessage=null;});
-  if(mIns.length===0){b.className='midi-badge';l.textContent='MIDI: geen apparaat';bar.classList.remove('show');return;}
-  sel.innerHTML='';
-  mIns.forEach(function(inp,i){var o=document.createElement('option');o.value=i;o.textContent=inp.name;sel.appendChild(o);});
-  bar.classList.add('show');
-  j6sel.innerHTML='<option value="">-- kies output --</option>';
-  mOuts.forEach(function(out,i){var o=document.createElement('option');o.value=i;o.textContent=out.name;j6sel.appendChild(o);});
-  j6bar.classList.add('show');
-  var idx=mIns.findIndex(function(d){return d.name.toLowerCase().includes('versa')||d.name.toLowerCase().includes('devine');});
-  if(idx<0)idx=0;sel.value=idx;pickIn(idx);
-  var oidx=mOuts.findIndex(function(d){return d.name.toLowerCase().includes('versa')||d.name.toLowerCase().includes('devine');});
-  if(oidx<0&&mOuts.length>0)oidx=0;if(oidx>=0){j6sel.value=oidx;pickOut(oidx);}
-}
-function scanMidi(){updMidi();}
-function pickIn(idx){
-  mIns.forEach(function(i){i.onmidimessage=null;});actIn=null;
-  if(idx===''||idx===null)return;
-  var inp=mIns[parseInt(idx)];if(!inp)return;
-  actIn=inp;inp.onmidimessage=onMidi;
-  document.getElementById('midiBadge').className='midi-badge ok';
-  document.getElementById('midiLbl').textContent=inp.name.length>22?inp.name.slice(0,20)+'..':inp.name;
-  document.getElementById('devTxt').textContent=inp.name;
-  document.getElementById('midiInfo').textContent='verbonden';
-}
-function pickOut(idx){
-  actOut=null;document.getElementById('j6devinfo').textContent='';
-  if(idx===''||idx===null)return;
-  var out=mOuts[parseInt(idx)];if(!out)return;
-  actOut=out;document.getElementById('j6devinfo').textContent='sync actief';
-  document.getElementById('j6dot').classList.add('on');
-}
-function onMidi(ev){
-  var cmd=ev.data[0]&0xF0,d1=ev.data[1],d2=ev.data[2];
-  iA();rA();
-  if(cmd===0x90&&d2>0){var f=d1+tr;if(f>=0&&f<=127)nOn(f,d2,true);sendNoteOn(d1,d2);}
-  else if(cmd===0x80||(cmd===0x90&&d2===0)){nOf(d1+tr);sendNoteOff(d1);document.getElementById('noteTxt').textContent='-- speel een toets --';}
-  else if(cmd===0xB0){
-    if(d1===64){sus=d2>=64;document.getElementById('susBtn').classList.toggle('on',sus);sendCC(64,d2);if(!sus){Object.keys(susH).forEach(function(n){nOf(+n,true);});susH={};}}
-    else if(d1===1){document.getElementById('modF').style.height=(d2/127*100)+'%';j6Update(93,d2);sendCC(1,d2);}
-    else if(d1===7){var v=Math.round(d2/127*100);vol=v/100;if(mG)mG.gain.value=vol;document.getElementById('volV').textContent=v;j6Update(7,d2);}
-    else{j6Update(d1,d2);sendCC(d1,d2);}
-  }
-  else if(cmd===0xE0){var bend=((d2<<7)|d1)-8192;pb=(bend/8192)*2;document.getElementById('pitchF').style.height=(((bend+8192)/16384)*100)+'%';sendPB((bend+8192)/16384);}
-  flash();
-}
-var ledT;
-function flash(){var l=document.getElementById('led');l.classList.add('f');clearTimeout(ledT);ledT=setTimeout(function(){l.classList.remove('f');},120);}
-if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
-buildJ6();buildPads();setModel(49);initMidi();
-</script>
-</body>
-</html><!DOCTYPE html>
-<html lang="nl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<!-- Zorgt dat de app er uit ziet als een echte app op iPhone/iPad -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="VersaKey">
+
+<!-- Kleur van de adresbalk op Android Chrome -->
 <meta name="theme-color" content="#f0ebe0">
-<meta name="description" content="Devine VersaKey Series MIDI Keyboard App — VK-25, VK-49, VK-61, VK-88">
-<title>Devine VersaKey</title>
+
+<!-- Beschrijving van de app (voor zoekmachines en PWA stores) -->
+<meta name="description" content="Devine VersaKey Series MIDI Keyboard App — VK-25, VK-49, VK-61, VK-88 | USB-MIDI voor Windows &amp; Android">
+
+<!-- Paginatitel zoals te zien in de browsertab -->
+<title>Devine VersaKey — MIDI Controller</title>
+
+<!-- PWA manifest: maakt de app installeerbaar als desktop/telefoon-app -->
 <link rel="manifest" href="manifest.json">
+
+<!-- App-icoon voor Apple apparaten -->
 <link rel="apple-touch-icon" href="icon-192.svg">
+
+<!-- Google Fonts: Space Mono voor code-stijl tekst, Outfit voor leesbare tekst -->
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+
 <style>
+/* ── CSS VARIABELEN ─────────────────────────────────────────────
+   Alle kleuren en afmetingen op één plek, makkelijk aan te passen */
 :root {
-  --bg:#f0ebe0; --surface:#e8e2d4; --surface2:#ddd8cc; --surface3:#ccc6b8;
-  --accent:#8b6f3a; --accent2:#b8935a; --glow:rgba(139,111,58,.18);
-  --text:#2a2520; --muted:#7a7060; --dim:#b0a898;
-  --border:rgba(139,111,58,.18); --border2:rgba(139,111,58,.1);
-  --wk:#faf8f3; --wkh:#fff9ee; --wka:#BA7517;
-  --bk:#1c1a18; --bkh:#2e2c28; --bka:#854F0B;
-  --ok:#2d7a3a; --err:#a33030;
-  --r:8px; --kr:4px;
+  --bg:       #f0ebe0;  /* Achtergrondkleur: warm ivoor */
+  --surface:  #e8e2d4;  /* Paneel-achtergrond: iets donkerder ivoor */
+  --surface2: #ddd8cc;  /* Tweede laag paneel */
+  --surface3: #ccc6b8;  /* Derde laag (sliders, etc.) */
+  --accent:   #8b6f3a;  /* Hoofdkleur: warme bruine tint */
+  --accent2:  #b8935a;  /* Lichtere accentkleur */
+  --text:     #2a2520;  /* Hoofdtekstkleur: donkerbruin */
+  --muted:    #7a7060;  /* Grijze tekst voor labels */
+  --dim:      #b0a898;  /* Nog grijzer voor niet-actieve elementen */
+  --border:   rgba(139,111,58,.18); /* Subtiele rand */
+  --wk:       #faf8f3;  /* Kleur witte piano-toets */
+  --wkh:      #fff9ee;  /* Witte toets bij hover */
+  --wka:      #BA7517;  /* Witte toets ingedrukt (oranje-goud) */
+  --bk:       #1c1a18;  /* Kleur zwarte piano-toets */
+  --bka:      #854F0B;  /* Zwarte toets ingedrukt */
+  --ok:       #2d7a3a;  /* Groen = alles goed (MIDI verbonden) */
+  --err:      #a33030;  /* Rood = fout (geen MIDI) */
 }
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:none;user-select:none;}
-body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
-.topbar{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
-.logo{display:flex;align-items:center;gap:9px;flex-shrink:0;}
-.logo-dot{width:28px;height:28px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;}
-.logo-dot::after{content:'';width:10px;height:10px;border-radius:50%;background:var(--bg);}
-.logo-text{font-family:'Space Mono',monospace;font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.07em;}
-.logo-sub{font-size:10px;color:var(--muted);margin-top:1px;}
-.sep{width:1px;height:20px;background:var(--border);flex-shrink:0;}
-.lbl{font-size:10px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;font-family:'Space Mono',monospace;white-space:nowrap;}
-.val{font-size:12px;color:var(--accent);font-family:'Space Mono',monospace;min-width:26px;text-align:center;}
-.btn{padding:4px 9px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:11px;cursor:pointer;transition:all .12s;white-space:nowrap;font-family:'Outfit',sans-serif;}
-.btn:hover{background:var(--surface2);border-color:var(--accent);}
-.btn:active{transform:scale(.93);}
-.btn.on{background:var(--accent);color:#fff;border-color:var(--accent);}
-.btn.mon{background:rgba(139,111,58,.15);color:var(--accent);border-color:var(--accent);font-weight:600;}
-.sel{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:4px 9px;border-radius:6px;font-size:11px;font-family:'Outfit',sans-serif;outline:none;cursor:pointer;max-width:148px;touch-action:auto;}
-.sel:focus{border-color:var(--accent);}
-.rng{-webkit-appearance:none;height:3px;border-radius:2px;background:var(--surface3);outline:none;width:72px;accent-color:var(--accent);}
-.rng::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid var(--bg);}
-.midi-badge{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:var(--bg);font-size:10px;font-family:'Space Mono',monospace;color:var(--muted);cursor:pointer;white-space:nowrap;flex-shrink:0;}
-.midi-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--dim);transition:background .3s;flex-shrink:0;}
-.midi-badge.ok .dot{background:var(--ok);box-shadow:0 0 4px var(--ok);}
-.midi-badge.ok{color:var(--ok);}
-.midi-badge.err .dot{background:var(--err);}
-.midi-badge.err{color:var(--err);}
-.pads-bar{display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
-.pads-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:5px;flex:1;min-width:0;}
-.pad{height:42px;border-radius:6px;border:1px solid rgba(0,0,0,.1);background:var(--surface);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;transition:all .08s;position:relative;overflow:hidden;touch-action:none;box-shadow:0 1px 3px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.5);}
-.pad-bg{position:absolute;inset:0;opacity:.16;transition:opacity .08s;}
-.pad:hover .pad-bg{opacity:.28;}
-.pad.hit{transform:scale(.89);box-shadow:inset 0 2px 5px rgba(0,0,0,.18);}
-.pad.hit .pad-bg{opacity:.65;}
-.pad-name{font-size:9px;font-weight:600;color:var(--text);position:relative;z-index:1;text-align:center;font-family:'Space Mono',monospace;}
-.pad-n{font-size:7px;color:var(--muted);position:relative;z-index:1;}
-.midi-bar{display:none;align-items:center;gap:8px;padding:5px 16px;background:rgba(45,122,58,.06);border-bottom:1px solid rgba(45,122,58,.15);}
-.midi-bar.show{display:flex;}
-.midi-sel{background:var(--bg);border:1px solid rgba(45,122,58,.25);color:var(--text);padding:3px 9px;border-radius:6px;font-size:11px;font-family:'Outfit',sans-serif;outline:none;cursor:pointer;flex:1;max-width:280px;touch-action:auto;}
-.midi-info{font-size:10px;color:var(--ok);font-family:'Space Mono',monospace;}
-.kb-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:14px 16px 10px;overflow:hidden;position:relative;}
-.kb-area{display:flex;align-items:flex-end;width:100%;justify-content:center;}
-.kb-scroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:var(--surface3) transparent;}
-.kb-scroll::-webkit-scrollbar{height:3px;}
-.kb-scroll::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:2px;}
-.keyboard{position:relative;display:inline-block;}
-.wk{position:absolute;bottom:0;background:var(--wk);border:1px solid #c8bfb0;border-radius:0 0 var(--kr) var(--kr);cursor:pointer;z-index:1;display:flex;align-items:flex-end;justify-content:center;padding-bottom:5px;box-shadow:0 2px 4px rgba(0,0,0,.1),inset 0 -2px 4px rgba(0,0,0,.05);touch-action:none;}
-.wk:hover{background:var(--wkh);}
-.wk.on{background:var(--wka)!important;}
-.bk{position:absolute;top:0;background:linear-gradient(to bottom,#2a2820,var(--bk));border:1px solid #000;border-radius:0 0 3px 3px;cursor:pointer;z-index:2;box-shadow:2px 3px 5px rgba(0,0,0,.4);touch-action:none;}
-.bk:hover{background:linear-gradient(to bottom,#3a3830,#2e2c28);}
-.bk.on{background:var(--bka)!important;}
-.k-lbl{font-size:8px;color:#888;font-family:'Space Mono',monospace;}
-.strips{display:flex;gap:6px;margin-right:10px;flex-shrink:0;padding-bottom:20px;}
-.strip{width:20px;height:165px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;position:relative;overflow:hidden;cursor:ns-resize;box-shadow:inset 0 2px 5px rgba(0,0,0,.05);touch-action:none;}
-.sf{position:absolute;bottom:0;left:0;right:0;border-radius:0 0 10px 10px;transition:height .04s;}
-.pf{background:#3b82f6;}
-.mf{background:var(--accent);}
-.s-lbl{font-size:8px;color:var(--muted);text-align:center;margin-top:3px;letter-spacing:.04em;font-family:'Space Mono',monospace;}
-.note-bar{display:flex;align-items:center;justify-content:space-between;padding:5px 16px;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;}
-.note-txt{font-size:11px;font-family:'Space Mono',monospace;color:var(--muted);}
-.led{width:7px;height:7px;border-radius:50%;background:var(--dim);transition:all .05s;}
-.led.f{background:var(--ok);box-shadow:0 0 6px var(--ok);}
-@media(max-width:650px){.pads-grid{grid-template-columns:repeat(4,1fr);}.sel{max-width:115px;}.rng{width:55px;}.topbar{padding:8px 10px;gap:6px;}.pads-bar{padding:7px 10px;}.kb-wrap{padding:10px 10px 8px;}}
+
+/* Alle elementen: geen ongewenste marges, geen tekstselectie (voor aanraakschermen) */
+* {
+  box-sizing: border-box;           /* Afmetingen inclusief rand en opvulling */
+  margin: 0;                        /* Geen buitenruimte */
+  padding: 0;                       /* Geen binnenruimte */
+  -webkit-tap-highlight-color: transparent; /* Geen blauwe flits bij aanraken op mobiel */
+  touch-action: none;               /* Standaard: blokkeer scrollgebaren (voor piano) */
+  user-select: none;                /* Geen tekst selecteren met muis */
+}
+
+/* Hoofd-lay-out: alles van boven naar beneden gestapeld, vult het scherm */
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  height: 100vh;                    /* Vul het volledige venster */
+  display: flex;
+  flex-direction: column;           /* Stapel secties verticaal */
+  overflow: hidden;                 /* Geen scrollbalk op de pagina zelf */
+}
+
+/* ── TOPBAR ─────────────────────────────────────────────────────
+   De bovenste balk met logo, modelknoppen, geluid, octaaf, etc. */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;                         /* Ruimte tussen elementen */
+  padding: 10px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;                   /* Balk krimpt niet als scherm klein is */
+  flex-wrap: wrap;                  /* Elementen gaan naar volgende rij als te smal */
+}
+
+/* Logo-blok: ronde stip + tekst */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-shrink: 0;
+}
+
+/* De oranje ronde stip in het logo */
+.logo-dot {
+  width: 28px;
+  height: 28px;
+  background: var(--accent);
+  border-radius: 50%;               /* Perfecte cirkel */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Kleine witte stip binnenin de oranje stip */
+.logo-dot::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--bg);
+}
+
+/* "DEVINE" tekst in het logo */
+.logo-text {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: .07em;
+}
+
+/* "VersaKey Series" tekst onder het logo */
+.logo-sub {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+/* Versie-badge naast het logo */
+.version-badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 9px;
+  color: var(--dim);
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+/* Verticale scheidingslijn tussen secties in de topbar */
+.sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* Kleine grijze labels ("MODEL", "GELUID", etc.) */
+.lbl {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  font-family: 'Space Mono', monospace;
+  white-space: nowrap;
+}
+
+/* Waarde-weergave (bijv. octaaf "C2", volume "80") */
+.val {
+  font-size: 12px;
+  color: var(--accent);
+  font-family: 'Space Mono', monospace;
+  min-width: 26px;
+  text-align: center;
+}
+
+/* Knoppen (VK-25, VK-49, +, -, Sustain, etc.) */
+.btn {
+  padding: 4px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .12s;
+  white-space: nowrap;
+  font-family: 'Outfit', sans-serif;
+}
+.btn:hover  { background: var(--surface2); border-color: var(--accent); }
+.btn:active { transform: scale(.93); }           /* Klein indruk-effect */
+.btn.on     { background: var(--accent); color: #fff; border-color: var(--accent); } /* Actief = oranje */
+.btn.mon    { background: rgba(139,111,58,.15); color: var(--accent); border-color: var(--accent); font-weight: 600; } /* Model-actief */
+
+/* Dropdown (geluidskeuze) */
+.sel {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 4px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: 'Outfit', sans-serif;
+  outline: none;
+  cursor: pointer;
+  max-width: 148px;
+  touch-action: auto;               /* Dropdown mag wel scrollen */
+}
+.sel:focus { border-color: var(--accent); }
+
+/* Volume-schuifbalk */
+.rng {
+  -webkit-appearance: none;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--surface3);
+  outline: none;
+  width: 72px;
+  accent-color: var(--accent);
+}
+.rng::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid var(--bg);
+}
+
+/* MIDI-verbindingsbadge (knopje rechts in topbar) */
+.midi-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 10px;
+  font-family: 'Space Mono', monospace;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.midi-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--dim); transition: background .3s; flex-shrink: 0; }
+.midi-badge.ok   { color: var(--ok); }
+.midi-badge.ok .dot  { background: var(--ok); box-shadow: 0 0 4px var(--ok); }  /* Groen gloeien = verbonden */
+.midi-badge.err  { color: var(--err); }
+.midi-badge.err .dot { background: var(--err); }
+
+/* ── USB-MIDI HELPBALK ───────────────────────────────────────────
+   Verschijnt alleen als er geen MIDI-apparaat gevonden wordt */
+.usb-hint {
+  display: none;                    /* Standaard verborgen */
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px;
+  background: rgba(163,48,48,.07);  /* Licht rood achtergrond */
+  border-bottom: 1px solid rgba(163,48,48,.2);
+  font-size: 11px;
+  color: var(--err);
+  font-family: 'Space Mono', monospace;
+}
+.usb-hint.show { display: flex; }   /* Zichtbaar als er geen MIDI is */
+.usb-hint a    { color: var(--accent); text-decoration: underline; cursor: pointer; }
+
+/* ── DRUM PADS BALK ─────────────────────────────────────────────*/
+.pads-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+/* Raster van 8 pads naast elkaar */
+.pads-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr); /* 8 gelijke kolommen */
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Eén drum-pad */
+.pad {
+  height: 42px;
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,.1);
+  background: var(--surface);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  transition: all .08s;
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,.08), inset 0 1px 0 rgba(255,255,255,.5);
+}
+
+/* Gekleurde achtergrond van een pad (de kleur van het instrument) */
+.pad-bg {
+  position: absolute;
+  inset: 0;
+  opacity: .16;
+  transition: opacity .08s;
+}
+.pad:hover .pad-bg { opacity: .28; }      /* Iets donkerder bij hoveren */
+.pad.hit           { transform: scale(.89); box-shadow: inset 0 2px 5px rgba(0,0,0,.18); } /* Ingedrukt effect */
+.pad.hit .pad-bg   { opacity: .65; }
+
+/* Naam van het instrument op de pad (bijv. "Kick") */
+.pad-name {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text);
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  font-family: 'Space Mono', monospace;
+}
+
+/* Padnummer (1-8 of 9-16) */
+.pad-n {
+  font-size: 7px;
+  color: var(--muted);
+  position: relative;
+  z-index: 1;
+}
+
+/* ── MIDI APPARAAT BALK ─────────────────────────────────────────
+   Verschijnt als er MIDI-apparaten gevonden worden */
+.midi-bar {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 16px;
+  background: rgba(45,122,58,.06);  /* Licht groen achtergrond */
+  border-bottom: 1px solid rgba(45,122,58,.15);
+}
+.midi-bar.show { display: flex; }   /* Zichtbaar als er MIDI-apparaten zijn */
+
+/* Dropdown om het MIDI-apparaat te kiezen */
+.midi-sel {
+  background: var(--bg);
+  border: 1px solid rgba(45,122,58,.25);
+  color: var(--text);
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: 'Outfit', sans-serif;
+  outline: none;
+  cursor: pointer;
+  flex: 1;
+  max-width: 280px;
+  touch-action: auto;
+}
+.midi-info { font-size: 10px; color: var(--ok); font-family: 'Space Mono', monospace; }
+
+/* ── KLAVIERBORD WRAPPER ─────────────────────────────────────────*/
+.kb-wrap {
+  flex: 1;                          /* Vult de resterende ruimte */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 16px 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Piano en touch-strips naast elkaar */
+.kb-area {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  justify-content: center;
+}
+
+/* Scrollbare zone voor de piano (horizontaal scrollen als te smal) */
+.kb-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch; /* Vloeiend scrollen op iOS */
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface3) transparent;
+}
+.kb-scroll::-webkit-scrollbar       { height: 3px; }
+.kb-scroll::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 2px; }
+
+/* Het piano-element zelf (toetsen worden hier ingevoegd via JavaScript) */
+.keyboard {
+  position: relative;
+  display: inline-block;
+}
+
+/* Witte piano-toets */
+.wk {
+  position: absolute;
+  bottom: 0;
+  background: var(--wk);
+  border: 1px solid #c8bfb0;
+  border-radius: 0 0 4px 4px;
+  cursor: pointer;
+  z-index: 1;                       /* Achter zwarte toetsen */
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 5px;
+  box-shadow: 0 2px 4px rgba(0,0,0,.1), inset 0 -2px 4px rgba(0,0,0,.05);
+  touch-action: none;
+}
+.wk:hover { background: var(--wkh); }
+.wk.on    { background: var(--wka) !important; } /* Ingedrukt = oranje-goud */
+
+/* Zwarte piano-toets */
+.bk {
+  position: absolute;
+  top: 0;
+  background: linear-gradient(to bottom, #2a2820, var(--bk));
+  border: 1px solid #000;
+  border-radius: 0 0 3px 3px;
+  cursor: pointer;
+  z-index: 2;                       /* Vóór witte toetsen */
+  box-shadow: 2px 3px 5px rgba(0,0,0,.4);
+  touch-action: none;
+}
+.bk:hover { background: linear-gradient(to bottom, #3a3830, #2e2c28); }
+.bk.on    { background: var(--bka) !important; }
+
+/* "C2", "C3" labels op de witte toetsen */
+.k-lbl {
+  font-size: 8px;
+  color: #888;
+  font-family: 'Space Mono', monospace;
+}
+
+/* ── TOUCH STRIPS (Pitch en Mod) ────────────────────────────────*/
+.strips {
+  display: flex;
+  gap: 6px;
+  margin-right: 10px;
+  flex-shrink: 0;
+  padding-bottom: 20px;
+}
+
+/* Eén strip (de glijbalk) */
+.strip {
+  width: 20px;
+  height: 165px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+  cursor: ns-resize;                /* Cursor verandert in pijl omhoog/omlaag */
+  box-shadow: inset 0 2px 5px rgba(0,0,0,.05);
+  touch-action: none;
+}
+
+/* De gekleurde vulling in de strip (hoe ver je hem hebt bewogen) */
+.sf {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-radius: 0 0 10px 10px;
+  transition: height .04s;
+}
+.pf { background: #3b82f6; }        /* Blauw = Pitch Bend */
+.mf { background: var(--accent); }  /* Oranje = Modulatie */
+
+/* Label onder de strip */
+.s-lbl {
+  font-size: 8px;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 3px;
+  letter-spacing: .04em;
+  font-family: 'Space Mono', monospace;
+}
+
+/* ── STATUSBALK ONDERAAN ────────────────────────────────────────*/
+.note-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 16px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.note-txt { font-size: 11px; font-family: 'Space Mono', monospace; color: var(--muted); }
+
+/* Klein LED-lampje dat knippert als er MIDI-data doorkomt */
+.led {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dim);
+  transition: all .05s;
+}
+.led.f { background: var(--ok); box-shadow: 0 0 6px var(--ok); } /* Groen knippert */
+
+/* ── RESPONSIVE: KLEINE SCHERMEN ────────────────────────────────*/
+@media (max-width: 650px) {
+  .pads-grid  { grid-template-columns: repeat(4, 1fr); } /* 4 pads per rij op telefoon */
+  .sel        { max-width: 115px; }
+  .rng        { width: 55px; }
+  .topbar     { padding: 8px 10px; gap: 6px; }
+  .pads-bar   { padding: 7px 10px; }
+  .kb-wrap    { padding: 10px 10px 8px; }
+}
 </style>
 </head>
 <body>
 
+<!-- ══════════════════════════════════════════════════════════════
+     TOPBAR: Logo + Model + Geluid + Octaaf + Volume + MIDI badge
+     ══════════════════════════════════════════════════════════════ -->
 <div class="topbar">
+
+  <!-- Logo links -->
   <div class="logo">
     <div class="logo-dot"></div>
-    <div><div class="logo-text">DEVINE</div><div class="logo-sub">VersaKey Series</div></div>
+    <div>
+      <div class="logo-text">DEVINE</div>
+      <div class="logo-sub">VersaKey Series</div>
+    </div>
   </div>
+
+  <!-- Versie-badge naast logo -->
+  <span class="version-badge">v2.0</span>
+
   <div class="sep"></div>
+
+  <!-- Modelknoppen: klik om het aantal toetsen te kiezen -->
   <span class="lbl">Model</span>
-  <button class="btn" id="m25" onclick="setModel(25)">VK-25</button>
+  <button class="btn"     id="m25" onclick="setModel(25)">VK-25</button>
   <button class="btn mon" id="m49" onclick="setModel(49)">VK-49</button>
-  <button class="btn" id="m61" onclick="setModel(61)">VK-61</button>
-  <button class="btn" id="m88" onclick="setModel(88)">VK-88</button>
+  <button class="btn"     id="m61" onclick="setModel(61)">VK-61</button>
+  <button class="btn"     id="m88" onclick="setModel(88)">VK-88</button>
+
   <div class="sep"></div>
+
+  <!-- Geluidskeuze dropdown -->
   <span class="lbl">Geluid</span>
   <select class="sel" id="instrSel" onchange="setInstr(this.value)">
     <optgroup label="Piano">
-      <option value="0" selected>Grand Piano</option><option value="1">Bright Piano</option>
-      <option value="2">Electric Grand</option><option value="4">E-Piano 1</option>
-      <option value="5">E-Piano 2</option><option value="6">Harpsichord</option>
+      <option value="0" selected>Grand Piano</option>
+      <option value="1">Bright Piano</option>
+      <option value="2">Electric Grand</option>
+      <option value="4">E-Piano 1</option>
+      <option value="5">E-Piano 2</option>
+      <option value="6">Harpsichord</option>
     </optgroup>
-    <optgroup label="Organ">
-      <option value="16">Drawbar Organ</option><option value="18">Rock Organ</option><option value="19">Church Organ</option>
+    <optgroup label="Orgel">
+      <option value="16">Drawbar Organ</option>
+      <option value="18">Rock Organ</option>
+      <option value="19">Church Organ</option>
     </optgroup>
-    <optgroup label="Guitar">
-      <option value="24">Nylon Guitar</option><option value="25">Steel Guitar</option><option value="30">Dist. Guitar</option>
+    <optgroup label="Gitaar">
+      <option value="24">Nylon Guitar</option>
+      <option value="25">Steel Guitar</option>
+      <option value="30">Dist. Guitar</option>
     </optgroup>
-    <optgroup label="Strings">
-      <option value="40">Violin</option><option value="48">Strings 1</option><option value="49">Strings 2</option>
+    <optgroup label="Strijkers">
+      <option value="40">Violin</option>
+      <option value="48">Strings 1</option>
+      <option value="49">Strings 2</option>
     </optgroup>
-    <optgroup label="Brass">
-      <option value="56">Trumpet</option><option value="61">Brass Section</option>
+    <optgroup label="Blaas">
+      <option value="56">Trumpet</option>
+      <option value="61">Brass Section</option>
     </optgroup>
     <optgroup label="Synth">
-      <option value="80">Syn Square</option><option value="81">Syn Saw</option>
-      <option value="88">New Age Pad</option><option value="89">Warm Pad</option>
+      <option value="80">Syn Square</option>
+      <option value="81">Syn Saw</option>
+      <option value="88">New Age Pad</option>
+      <option value="89">Warm Pad</option>
     </optgroup>
-    <optgroup label="Bass">
-      <option value="32">Acoustic Bass</option><option value="33">Fingered Bass</option><option value="38">Synth Bass</option>
+    <optgroup label="Bas">
+      <option value="32">Acoustic Bass</option>
+      <option value="33">Fingered Bass</option>
+      <option value="38">Synth Bass</option>
     </optgroup>
   </select>
+
   <div class="sep"></div>
+
+  <!-- Octaaf verschuiven: - knop, waarde, + knop -->
   <span class="lbl">Oct</span>
   <button class="btn" onclick="chOct(-1)">−</button>
   <span class="val" id="octV">C2</span>
   <button class="btn" onclick="chOct(1)">+</button>
+
   <div class="sep"></div>
+
+  <!-- Toonhoogte verschuiven in halve tonen -->
   <span class="lbl">Transp</span>
   <button class="btn" onclick="chTr(-1)">−</button>
   <span class="val" id="trV">0</span>
   <button class="btn" onclick="chTr(1)">+</button>
+
   <div class="sep"></div>
+
+  <!-- Volume schuifbalk + waarde -->
   <span class="lbl">Vol</span>
   <input type="range" class="rng" min="0" max="100" value="80" step="1" oninput="chVol(this.value)">
   <span class="val" id="volV">80</span>
+
   <div class="sep"></div>
+
+  <!-- Sustain knop: houdt noten vast (zoals sustain-pedaal) -->
   <button class="btn" id="susBtn" onclick="chSus()">Sustain</button>
+
   <div class="sep"></div>
-  <div class="midi-badge" id="midiBadge" onclick="scanMidi()" title="Klik om MIDI te scannen">
-    <div class="dot"></div><span id="midiLbl">MIDI scannen…</span>
+
+  <!-- MIDI verbindingsbadge: klik om opnieuw te scannen -->
+  <div class="midi-badge" id="midiBadge" onclick="scanMidi()" title="Klik om MIDI apparaten te scannen">
+    <div class="dot"></div>
+    <span id="midiLbl">MIDI scannen…</span>
   </div>
+
+</div><!-- /topbar -->
+
+<!-- ══════════════════════════════════════════════════════════════
+     USB-HINT: Hulpbalk als MIDI niet werkt of niet ondersteund is
+     ══════════════════════════════════════════════════════════════ -->
+<div class="usb-hint" id="usbHint">
+  <!-- Uitleg wat de gebruiker moet doen als MIDI niet werkt -->
+  <span>⚠️ Geen MIDI gevonden —</span>
+  <span>sluit je VersaKey aan via <strong>USB-kabel</strong> en gebruik <strong>Chrome</strong> of <strong>Edge</strong> op Windows/Android.</span>
+  <span id="usbHintDetail"></span>
 </div>
 
+<!-- ══════════════════════════════════════════════════════════════
+     DRUM PADS BALK
+     ══════════════════════════════════════════════════════════════ -->
 <div class="pads-bar">
   <span class="lbl">Drum Pads</span>
+  <!-- 8 pads worden hier ingevoegd door buildPads() in JavaScript -->
   <div class="pads-grid" id="padsG"></div>
+  <!-- Knop om te wisselen tussen pad-bank 1-8 en 9-16 -->
   <button class="btn" id="bankBtn" onclick="chBank()" style="flex-shrink:0;margin-left:4px;">Bank 1–8</button>
 </div>
 
+<!-- ══════════════════════════════════════════════════════════════
+     MIDI APPARAAT BALK: verschijnt als MIDI-apparaten worden gevonden
+     ══════════════════════════════════════════════════════════════ -->
 <div class="midi-bar" id="midiBar">
   <span class="midi-info">Apparaat:</span>
+  <!-- Dropdown om het juiste MIDI-apparaat te kiezen -->
   <select class="midi-sel" id="midiSel" onchange="pickMidi(this.value)">
     <option value="">— kies MIDI apparaat —</option>
   </select>
+  <!-- Status tekst: "verbonden" of "wacht op noot..." -->
   <span class="midi-info" id="midiInfo"></span>
 </div>
 
+<!-- ══════════════════════════════════════════════════════════════
+     PIANO + TOUCH STRIPS
+     ══════════════════════════════════════════════════════════════ -->
 <div class="kb-wrap">
   <div class="kb-area">
+
+    <!-- Touch strips: Pitch Bend en Modulatie -->
     <div class="strips">
+
+      <!-- Pitch Bend strip: sleept omhoog = toon hoger, omlaag = lager -->
       <div>
         <div class="strip" id="pitchS"
           ontouchstart="sS(event,'p')" ontouchmove="sM(event,'p')" ontouchend="sE(event,'p')"
           onmousedown="sS(event,'p')">
-          <div class="sf pf" id="pitchF" style="height:50%"></div>
+          <div class="sf pf" id="pitchF" style="height:50%"></div> <!-- Start op 50% = geen buiging -->
         </div>
         <div class="s-lbl">PITCH</div>
       </div>
+
+      <!-- Modulatie strip: sleept omhoog = meer effect -->
       <div>
         <div class="strip" id="modS"
           ontouchstart="sS(event,'m')" ontouchmove="sM(event,'m')" ontouchend="sE(event,'m')"
           onmousedown="sS(event,'m')">
-          <div class="sf mf" id="modF" style="height:0%"></div>
+          <div class="sf mf" id="modF" style="height:0%"></div> <!-- Start op 0% = geen modulatie -->
         </div>
         <div class="s-lbl">MOD</div>
       </div>
-    </div>
+
+    </div><!-- /strips -->
+
+    <!-- Scrollbare piano: toetsen worden door JavaScript gemaakt -->
     <div class="kb-scroll">
       <div class="keyboard" id="kb"></div>
     </div>
-  </div>
-</div>
 
+  </div><!-- /kb-area -->
+</div><!-- /kb-wrap -->
+
+<!-- ══════════════════════════════════════════════════════════════
+     STATUSBALK ONDERAAN: toont welke noot je speelt
+     ══════════════════════════════════════════════════════════════ -->
 <div class="note-bar">
+  <!-- Tekst die de huidige noot toont -->
   <span class="note-txt" id="noteTxt">— speel een toets —</span>
+  <!-- LED-lampje dat knippert bij MIDI-activiteit -->
   <div class="led" id="led"></div>
+  <!-- Naam van het verbonden MIDI-apparaat (rechts) -->
   <span class="note-txt" id="devTxt" style="font-size:10px;"></span>
 </div>
 
+<!-- ══════════════════════════════════════════════════════════════
+     JAVASCRIPT
+     ══════════════════════════════════════════════════════════════ -->
 <script>
-var aC=null,mG=null,aN={},sus=false,susH={};
-var vol=.8,vel=90,octOff=0,tr=0,instr=0,mdl=49,pb=0;
-var sDr={},bank=0;
-var NN=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-var BP=[0,1,0,1,0,0,1,0,1,0,1,0];
-var MC={25:{s:48,n:25},49:{s:36,n:49},61:{s:36,n:61},88:{s:21,n:88}};
-var WW=36,WH=170,BW=22,BH=105;
+/* ── VERSIE INFO ─────────────────────────────────────────────────
+   Sla de versie op zodat we hem kunnen loggen en vergelijken */
+var APP_VERSION = '2.0.0';
+console.log('[VersaKey] app versie', APP_VERSION, '| USB-MIDI modus voor Chrome/Windows/Android');
 
-function iA(){if(aC)return;aC=new(window.AudioContext||window.webkitAudioContext)();mG=aC.createGain();mG.gain.value=vol;mG.connect(aC.destination);}
-function rA(){if(aC&&aC.state==='suspended')aC.resume();}
+/* ── NOOT NAMEN EN PIANO LAYOUT ──────────────────────────────────
+   NN = namen van de 12 noten per octaaf (C t/m B)
+   BP = 1 betekent zwarte toets, 0 = witte toets */
+var NN = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+var BP = [0,1,0,1,0,0,1,0,1,0,1,0];
 
-var PRF={
-  pi:{t:'triangle',a:.005,d:.3,s:.4,r:.8,h:[1,.5,.25,.12,.06],dt:0},
-  or:{t:'sine',a:.01,d:0,s:1,r:.1,h:[1,.8,.6,.3],dt:0},
-  gu:{t:'sawtooth',a:.003,d:.15,s:.3,r:.4,h:[1,.6,.3,.15],dt:2},
-  st:{t:'sawtooth',a:.09,d:.1,s:.8,r:.6,h:[1,.7,.3,.1],dt:6},
-  br:{t:'sawtooth',a:.04,d:.08,s:.9,r:.2,h:[1,.6,.4,.2],dt:3},
-  sy:{t:'sawtooth',a:.01,d:.1,s:.7,r:.3,h:[1,.5,.33,.25],dt:0},
-  ba:{t:'triangle',a:.005,d:.2,s:.5,r:.3,h:[1,.8,.2,.08],dt:1},
-  pa:{t:'sine',a:.22,d:.1,s:.9,r:.9,h:[1,.6,.3,.15],dt:9}
+/* ── MODEL CONFIGURATIE ──────────────────────────────────────────
+   s = eerste MIDI-nootnummer, n = aantal toetsen
+   VK-25 begint op C3 (48), VK-49 en VK-61 beginnen op C2 (36), VK-88 op A0 (21) */
+var MC = {
+  25: { s: 48, n: 25 },
+  49: { s: 36, n: 49 },
+  61: { s: 36, n: 61 },
+  88: { s: 21, n: 88 }
 };
-function gP(i){i=+i;if(i<=7)return PRF.pi;if(i>=16&&i<=23)return PRF.or;if(i>=24&&i<=31)return PRF.gu;if(i>=32&&i<=39)return PRF.ba;if(i>=40&&i<=55)return PRF.st;if(i>=56&&i<=63)return PRF.br;if(i>=80&&i<=87)return PRF.sy;if(i>=88&&i<=95)return PRF.pa;return PRF.pi;}
-function m2f(n){return 440*Math.pow(2,(n-69)/12);}
 
-function nOn(mn,v,hw){
-  iA();rA();nOf(mn,true);
-  var p=gP(instr),freq=m2f(mn)*Math.pow(2,pb/12),vv=(v/127)*vol;
-  var g=aC.createGain(),now=aC.currentTime;
-  var fl=aC.createBiquadFilter();fl.type='lowpass';fl.frequency.value=Math.min(3800+mn*32,17000);fl.Q.value=.7;
-  fl.connect(g);g.connect(mG);
-  g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(vv,now+p.a);g.gain.linearRampToValueAtTime(vv*p.s,now+p.a+p.d);
-  var os=p.h.map(function(amp,i){var o=aC.createOscillator(),hg=aC.createGain();o.type=p.t;o.frequency.value=freq*(i+1);o.detune.value=(i%2?1:-1)*p.dt*i;hg.gain.value=amp;o.connect(hg);hg.connect(fl);o.start(now);return o;});
-  aN[mn]={g:g,os:os,p:p};kviz(mn,true);flash();
-  document.getElementById('noteTxt').textContent=(hw?'[HW] ':'')+NN[mn%12]+(Math.floor(mn/12)-1)+' · MIDI '+mn;
-}
-function nOf(mn,force){
-  if(!aN[mn])return;
-  if(sus&&!force){susH[mn]=true;return;}
-  var x=aN[mn],now=aC?aC.currentTime:0;
-  x.g.gain.cancelScheduledValues(now);x.g.gain.setValueAtTime(x.g.gain.value,now);x.g.gain.linearRampToValueAtTime(0,now+x.p.r);
-  x.os.forEach(function(o){try{o.stop(now+x.p.r+.05);}catch(e){}});
-  delete aN[mn];kviz(mn,false);
-}
-function allOf(){Object.keys(aN).forEach(function(n){nOf(+n,true);});susH={};}
-function kviz(mn,on){var e=document.querySelector('[data-m="'+(mn-tr)+'"]');if(e)e.classList.toggle('on',on);}
+/* ── AFMETINGEN PIANO-TOETSEN ────────────────────────────────────
+   WW = breedte witte toets, WH = hoogte witte toets
+   BW = breedte zwarte toets, BH = hoogte zwarte toets */
+var WW=36, WH=170, BW=22, BH=105;
 
-function buildKB(n,s){
-  var kb=document.getElementById('kb');kb.innerHTML='';kb.style.height=WH+'px';
-  var wc=0,ks=[];
-  for(var i=0;i<n;i++){var m=s+i,ni=m%12,ib=!!BP[ni];if(!ib)wc++;ks.push({m:m,ni:ni,ib:ib});}
-  kb.style.width=(wc*WW)+'px';
-  var wx=0;
-  ks.forEach(function(k){
-    var el=document.createElement('div');el.dataset.m=k.m;
-    if(!k.ib){
-      el.className='wk';el.style.cssText='left:'+wx+'px;width:'+WW+'px;height:'+WH+'px;';
-      if(NN[k.ni]==='C'){var lb=document.createElement('span');lb.className='k-lbl';lb.textContent='C'+(Math.floor(k.m/12)-1);el.appendChild(lb);}
-      wx+=WW;
+/* ── TOESTANDSVARIABELEN ─────────────────────────────────────────
+   Sla de huidige toestand van alle instellingen op */
+var aC     = null;    /* AudioContext: de motor die geluid maakt */
+var mG     = null;    /* Master gain node: regelt het totaalvolume */
+var aN     = {};      /* Actieve Noten: {midiNr: {gain, oscillators, profiel}} */
+var sus    = false;   /* Sustain aan/uit */
+var susH   = {};      /* Noten die worden vastgehouden door sustain */
+var vol    = .8;      /* Volume 0.0 tot 1.0 */
+var vel    = 90;      /* Aanslagsterkte (MIDI velocity) 0-127 */
+var octOff = 0;       /* Octaafverschuiving: hoeveel octaven omhoog/omlaag */
+var tr     = 0;       /* Transpositie: halve tonen omhoog/omlaag */
+var instr  = 0;       /* Geselecteerd instrument (GM programmanummer) */
+var mdl    = 49;      /* Actief klaviermodel (25, 49, 61 of 88) */
+var pb     = 0;       /* Pitch Bend waarde (-2 tot +2 octaven) */
+var sDr    = {};      /* Strip sleepstatus: {p: boolean, m: boolean} */
+var bank   = 0;       /* Actieve pad-bank: 0 = pads 1-8, 1 = pads 9-16 */
+
+/* ── MIDI VARIABELEN ─────────────────────────────────────────────*/
+var mAcc = null;      /* MIDIAccess object (van de browser WebMIDI API) */
+var mIns = [];        /* Lijst van alle MIDI invoerapparaten */
+var actIn = null;     /* Momenteel geselecteerde MIDI invoer */
+
+/* ── GELUID PROFIELEN ────────────────────────────────────────────
+   Elk instrument heeft een profiel met:
+   t  = golfvorm (sine=zacht, sawtooth=rauw, triangle=warm)
+   a  = attack tijd (hoe snel het geluid start, in seconden)
+   d  = decay tijd (hoe snel het daalt na de piek)
+   s  = sustain niveau (0.0-1.0)
+   r  = release tijd (hoe lang het naklinkt na loslaten)
+   h  = harmonischen (boventonen, geeft het klankkleur)
+   dt = detune (kleine toonhoogteverschillen voor dikte) */
+var PRF = {
+  pi: { t:'triangle',  a:.005, d:.3,  s:.4,  r:.8,  h:[1,.5,.25,.12,.06], dt:0  }, /* Piano */
+  or: { t:'sine',      a:.01,  d:0,   s:1,   r:.1,  h:[1,.8,.6,.3],       dt:0  }, /* Orgel */
+  gu: { t:'sawtooth',  a:.003, d:.15, s:.3,  r:.4,  h:[1,.6,.3,.15],      dt:2  }, /* Gitaar */
+  st: { t:'sawtooth',  a:.09,  d:.1,  s:.8,  r:.6,  h:[1,.7,.3,.1],       dt:6  }, /* Strijkers */
+  br: { t:'sawtooth',  a:.04,  d:.08, s:.9,  r:.2,  h:[1,.6,.4,.2],       dt:3  }, /* Blaas */
+  sy: { t:'sawtooth',  a:.01,  d:.1,  s:.7,  r:.3,  h:[1,.5,.33,.25],     dt:0  }, /* Synth */
+  ba: { t:'triangle',  a:.005, d:.2,  s:.5,  r:.3,  h:[1,.8,.2,.08],      dt:1  }, /* Bas */
+  pa: { t:'sine',      a:.22,  d:.1,  s:.9,  r:.9,  h:[1,.6,.3,.15],      dt:9  }  /* Pad */
+};
+
+/* Kies het geluidsprofiel op basis van het GM programmanummer */
+function gP(i) {
+  i = +i; /* Zorg dat i een getal is */
+  if (i <= 7)              return PRF.pi; /* Piano-familie */
+  if (i >= 16 && i <= 23) return PRF.or; /* Orgel-familie */
+  if (i >= 24 && i <= 31) return PRF.gu; /* Gitaar-familie */
+  if (i >= 32 && i <= 39) return PRF.ba; /* Bas-familie */
+  if (i >= 40 && i <= 55) return PRF.st; /* Strijkers-familie */
+  if (i >= 56 && i <= 63) return PRF.br; /* Blaas-familie */
+  if (i >= 80 && i <= 87) return PRF.sy; /* Synth-familie */
+  if (i >= 88 && i <= 95) return PRF.pa; /* Pad-familie */
+  return PRF.pi; /* Standaard: piano */
+}
+
+/* Zet een MIDI-nootnummer om naar frequentie in Hz
+   Formule: 440 Hz * 2^((noot-69)/12) — dit is de standaard muziekformule */
+function m2f(n) { return 440 * Math.pow(2, (n - 69) / 12); }
+
+/* ── AUDIO CONTEXT INITIALISATIE ────────────────────────────────
+   De AudioContext mag pas starten na een gebruikersactie (browserregel) */
+function iA() {
+  if (aC) return; /* Al aangemaakt? Niets te doen */
+  aC = new (window.AudioContext || window.webkitAudioContext)(); /* Maak de audio-motor */
+  mG = aC.createGain(); /* Maak de volumeregelaar */
+  mG.gain.value = vol;  /* Stel het volume in */
+  mG.connect(aC.destination); /* Verbind met de luidsprekers */
+}
+
+/* Hervat de AudioContext als de browser hem heeft gepauzeerd */
+function rA() { if (aC && aC.state === 'suspended') aC.resume(); }
+
+/* ── NOOT AAN ────────────────────────────────────────────────────
+   Speel een noot af.
+   mn = MIDI-nootnummer (0-127), v = velocity (0-127), hw = van hardware keyboard */
+function nOn(mn, v, hw) {
+  iA(); rA();         /* Zorg dat audio werkt */
+  nOf(mn, true);      /* Stop eventuele dezelfde noot die al speelt */
+
+  var p    = gP(instr);                              /* Haal het geluidsprofiel op */
+  var freq = m2f(mn) * Math.pow(2, pb / 12);         /* Bereken frequentie inclusief pitch bend */
+  var vv   = (v / 127) * vol;                        /* Zet velocity om naar volume (0.0-1.0) */
+  var g    = aC.createGain();                        /* Maak een gain node voor deze noot */
+  var now  = aC.currentTime;                         /* Huidige tijdstip in de AudioContext */
+
+  /* Maak een laagdoorlaatfilter: maakt de klank zachter boven een bepaalde frequentie */
+  var fl = aC.createBiquadFilter();
+  fl.type            = 'lowpass';
+  fl.frequency.value = Math.min(3800 + mn * 32, 17000); /* Hogere noten = helderder */
+  fl.Q.value         = .7;
+  fl.connect(g);    /* Filter → gain node */
+  g.connect(mG);    /* Gain node → master volume */
+
+  /* Stel de volume-envelop in (ADSR: Attack, Decay, Sustain, Release) */
+  g.gain.setValueAtTime(0, now);                                    /* Start op 0 */
+  g.gain.linearRampToValueAtTime(vv, now + p.a);                   /* Stijg naar volume (Attack) */
+  g.gain.linearRampToValueAtTime(vv * p.s, now + p.a + p.d);       /* Daal naar sustain niveau */
+
+  /* Maak oscillatoren aan voor elke boventoon (harmonische) */
+  var os = p.h.map(function(amp, i) {
+    var o  = aC.createOscillator(); /* Een oscillator maakt een toon */
+    var hg = aC.createGain();       /* Gain voor deze boventoon */
+    o.type           = p.t;                        /* Golfvorm */
+    o.frequency.value = freq * (i + 1);            /* Grondtoon * (1, 2, 3, ...) */
+    o.detune.value   = (i % 2 ? 1 : -1) * p.dt * i; /* Kleine toonverschillen voor dikte */
+    hg.gain.value    = amp;                        /* Volume van deze boventoon */
+    o.connect(hg);                                 /* Oscillator → boventoon-gain */
+    hg.connect(fl);                                /* Boventoon-gain → filter */
+    o.start(now);                                  /* Start de oscillator */
+    return o;
+  });
+
+  /* Sla de actieve noot op zodat we hem later kunnen stoppen */
+  aN[mn] = { g: g, os: os, p: p };
+  kviz(mn, true);  /* Licht de toets op op het scherm */
+  flash();         /* Laat het LED-lampje knipperen */
+
+  /* Toon de nootnaam onderaan */
+  document.getElementById('noteTxt').textContent =
+    (hw ? '[HW] ' : '') + NN[mn % 12] + (Math.floor(mn / 12) - 1) + ' · MIDI ' + mn;
+}
+
+/* ── NOOT UIT ────────────────────────────────────────────────────
+   Stop een noot.
+   mn = MIDI-nootnummer, force = stop ook als sustain aan staat */
+function nOf(mn, force) {
+  if (!aN[mn]) return; /* Noot speelt niet? Niets te doen */
+  if (sus && !force) { susH[mn] = true; return; } /* Sustain aan: bewaar voor later */
+
+  var x   = aN[mn];
+  var now = aC ? aC.currentTime : 0;
+
+  /* Laat het volume langzaam wegvallen (Release) */
+  x.g.gain.cancelScheduledValues(now);
+  x.g.gain.setValueAtTime(x.g.gain.value, now);
+  x.g.gain.linearRampToValueAtTime(0, now + x.p.r);
+
+  /* Stop alle oscillatoren na de release-tijd */
+  x.os.forEach(function(o) {
+    try { o.stop(now + x.p.r + .05); } catch(e) {}
+  });
+
+  delete aN[mn];    /* Verwijder de noot uit het actieve noten-object */
+  kviz(mn, false);  /* Zet de toets terug naar normale kleur */
+}
+
+/* Stop alle actieve noten tegelijk (bijv. bij model-wissel) */
+function allOf() {
+  Object.keys(aN).forEach(function(n) { nOf(+n, true); });
+  susH = {};
+}
+
+/* Licht een piano-toets op of uit op het scherm */
+function kviz(mn, on) {
+  /* Zoek het HTML-element voor deze toets (-tr want het scherm toont de niet-getransponeerde toetsen) */
+  var e = document.querySelector('[data-m="' + (mn - tr) + '"]');
+  if (e) e.classList.toggle('on', on);
+}
+
+/* ── PIANO BOUWEN ────────────────────────────────────────────────
+   Bouw het pianotoetsenbord in HTML op basis van het model.
+   n = aantal toetsen, s = startende MIDI-nootnummer */
+function buildKB(n, s) {
+  var kb = document.getElementById('kb');
+  kb.innerHTML = '';    /* Verwijder het oude toetsenbord */
+  kb.style.height = WH + 'px'; /* Stel hoogte in */
+
+  var wc = 0; /* Teller voor witte toetsen (bepaalt de totale breedte) */
+  var ks = []; /* Array met informatie over elke toets */
+
+  /* Ga door alle toetsen heen en bepaal of ze wit of zwart zijn */
+  for (var i = 0; i < n; i++) {
+    var m  = s + i;         /* MIDI-nootnummer van deze toets */
+    var ni = m % 12;        /* Positie in het octaaf (0=C, 1=C#, etc.) */
+    var ib = !!BP[ni];      /* Is het een zwarte toets? */
+    if (!ib) wc++;           /* Tel witte toetsen */
+    ks.push({ m: m, ni: ni, ib: ib });
+  }
+
+  /* Stel de totale breedte van het toetsenbord in */
+  kb.style.width = (wc * WW) + 'px';
+
+  var wx = 0; /* Horizontale positie van de volgende witte toets */
+
+  /* Maak elk toets-element aan */
+  ks.forEach(function(k) {
+    var el = document.createElement('div');
+    el.dataset.m = k.m; /* Sla het MIDI-nootnummer op als data-attribuut */
+
+    if (!k.ib) {
+      /* WITTE TOETS */
+      el.className = 'wk';
+      el.style.cssText = 'left:' + wx + 'px;width:' + WW + 'px;height:' + WH + 'px;';
+
+      /* Voeg "C2", "C3" labels toe aan C-toetsen */
+      if (NN[k.ni] === 'C') {
+        var lb = document.createElement('span');
+        lb.className   = 'k-lbl';
+        lb.textContent = 'C' + (Math.floor(k.m / 12) - 1);
+        el.appendChild(lb);
+      }
+      wx += WW; /* Ga naar de positie van de volgende witte toets */
+
     } else {
-      el.className='bk';el.style.cssText='left:'+(wx-BW*.6)+'px;width:'+BW+'px;height:'+BH+'px;top:0;';
+      /* ZWARTE TOETS */
+      el.className = 'bk';
+      /* Positioneer iets voor de volgende witte toets (overlap) */
+      el.style.cssText = 'left:' + (wx - BW * .6) + 'px;width:' + BW + 'px;height:' + BH + 'px;top:0;';
     }
-    el.addEventListener('touchstart',function(e){e.preventDefault();kDn(k.m);},{passive:false});
-    el.addEventListener('touchend',function(e){e.preventDefault();kUp(k.m);},{passive:false});
-    el.addEventListener('mousedown',function(e){e.preventDefault();kDn(k.m);});
-    el.addEventListener('mouseup',function(){kUp(k.m);});
-    el.addEventListener('mouseleave',function(){if(aN[k.m+tr])kUp(k.m);});
-    kb.appendChild(el);
+
+    /* Aanraak-events voor touchschermen */
+    el.addEventListener('touchstart', function(e) { e.preventDefault(); kDn(k.m); }, { passive: false });
+    el.addEventListener('touchend',   function(e) { e.preventDefault(); kUp(k.m); }, { passive: false });
+
+    /* Muis-events voor desktop */
+    el.addEventListener('mousedown',  function(e) { e.preventDefault(); kDn(k.m); });
+    el.addEventListener('mouseup',    function()  { kUp(k.m); });
+    el.addEventListener('mouseleave', function()  { if (aN[k.m + tr]) kUp(k.m); }); /* Loslaten bij weggaan */
+
+    kb.appendChild(el); /* Voeg de toets toe aan het toetsenbord */
   });
 }
-function kDn(m){var f=m+tr;if(f>=0&&f<=127)nOn(f,vel,false);}
-function kUp(m){nOf(m+tr);document.getElementById('noteTxt').textContent='— speel een toets —';}
 
-var BANKS=[[
-  {n:'Kick',m:36,c:'#c0392b'},{n:'Snare',m:38,c:'#8b6f3a'},{n:'Hi-Hat',m:42,c:'#2980b9'},{n:'Open HH',m:46,c:'#27ae60'},
-  {n:'Tom L',m:41,c:'#8e44ad'},{n:'Tom H',m:50,c:'#d35400'},{n:'Crash',m:49,c:'#c0392b'},{n:'Ride',m:51,c:'#16a085'}
-],[
-  {n:'Clap',m:39,c:'#e67e22'},{n:'Rim',m:37,c:'#2c3e50'},{n:'Tamb',m:54,c:'#8e44ad'},{n:'Cowbell',m:56,c:'#c0392b'},
-  {n:'Tom M',m:45,c:'#27ae60'},{n:'Perc1',m:60,c:'#2980b9'},{n:'Perc2',m:61,c:'#d35400'},{n:'Splash',m:55,c:'#16a085'}
-]];
-function buildPads(){
-  var g=document.getElementById('padsG');g.innerHTML='';
-  BANKS[bank].forEach(function(s,i){
-    var p=document.createElement('div');p.className='pad';
-    var bg=document.createElement('div');bg.className='pad-bg';bg.style.background=s.c;p.appendChild(bg);
-    var nm=document.createElement('span');nm.className='pad-name';nm.textContent=s.n;p.appendChild(nm);
-    var nb=document.createElement('span');nb.className='pad-n';nb.textContent=(bank*8+i+1);p.appendChild(nb);
-    p.addEventListener('touchstart',function(e){e.preventDefault();padHit(p,s.m);},{passive:false});
-    p.addEventListener('mousedown',function(){padHit(p,s.m);});
+/* Noot AAN via het klikken/aanraken van een piano-toets */
+function kDn(m) {
+  var f = m + tr; /* Voeg transpositie toe */
+  if (f >= 0 && f <= 127) nOn(f, vel, false); /* Speel de noot */
+}
+
+/* Noot UIT als je de piano-toets loslaat */
+function kUp(m) {
+  nOf(m + tr); /* Stop de noot */
+  document.getElementById('noteTxt').textContent = '— speel een toets —';
+}
+
+/* ── DRUM PADS ───────────────────────────────────────────────────
+   Twee banken van 8 pads elk.
+   n = naam, m = MIDI-nootnummer, c = kleur */
+var BANKS = [
+  /* Bank 1-8: standaard drumstel */
+  [
+    { n:'Kick',    m:36, c:'#c0392b' }, /* Bassdrum: rood */
+    { n:'Snare',   m:38, c:'#8b6f3a' }, /* Snare: bruin */
+    { n:'Hi-Hat',  m:42, c:'#2980b9' }, /* Hi-hat gesloten: blauw */
+    { n:'Open HH', m:46, c:'#27ae60' }, /* Hi-hat open: groen */
+    { n:'Tom L',   m:41, c:'#8e44ad' }, /* Lage tom: paars */
+    { n:'Tom H',   m:50, c:'#d35400' }, /* Hoge tom: oranje */
+    { n:'Crash',   m:49, c:'#c0392b' }, /* Crash cymbal: rood */
+    { n:'Ride',    m:51, c:'#16a085' }  /* Ride cymbal: groenblauw */
+  ],
+  /* Bank 9-16: extra percussie */
+  [
+    { n:'Clap',    m:39, c:'#e67e22' },
+    { n:'Rim',     m:37, c:'#2c3e50' },
+    { n:'Tamb',    m:54, c:'#8e44ad' },
+    { n:'Cowbell', m:56, c:'#c0392b' },
+    { n:'Tom M',   m:45, c:'#27ae60' },
+    { n:'Perc1',   m:60, c:'#2980b9' },
+    { n:'Perc2',   m:61, c:'#d35400' },
+    { n:'Splash',  m:55, c:'#16a085' }
+  ]
+];
+
+/* Bouw de pad-knoppen in het HTML-raster */
+function buildPads() {
+  var g = document.getElementById('padsG');
+  g.innerHTML = ''; /* Leegmaken */
+
+  BANKS[bank].forEach(function(s, i) {
+    var p  = document.createElement('div');
+    p.className = 'pad';
+
+    /* Gekleurde achtergrond van de pad */
+    var bg = document.createElement('div');
+    bg.className       = 'pad-bg';
+    bg.style.background = s.c;
+    p.appendChild(bg);
+
+    /* Naam van het instrument */
+    var nm = document.createElement('span');
+    nm.className   = 'pad-name';
+    nm.textContent = s.n;
+    p.appendChild(nm);
+
+    /* Padnummer (1-8 of 9-16) */
+    var nb = document.createElement('span');
+    nb.className   = 'pad-n';
+    nb.textContent = (bank * 8 + i + 1);
+    p.appendChild(nb);
+
+    /* Aanraak-event */
+    p.addEventListener('touchstart', function(e) { e.preventDefault(); padHit(p, s.m); }, { passive: false });
+    /* Muis-event */
+    p.addEventListener('mousedown', function() { padHit(p, s.m); });
+
     g.appendChild(p);
   });
 }
-function chBank(){bank=bank?0:1;document.getElementById('bankBtn').textContent=bank?'Bank 9–16':'Bank 1–8';buildPads();}
-function padHit(p,m){iA();rA();p.classList.add('hit');setTimeout(function(){p.classList.remove('hit');},110);pDrum(m);flash();}
-function pDrum(m){
-  if(!aC)return;var now=aC.currentTime,g=aC.createGain();g.connect(mG);
-  if(m===36){var o=aC.createOscillator();o.type='sine';o.frequency.setValueAtTime(160,now);o.frequency.exponentialRampToValueAtTime(40,now+.15);g.gain.setValueAtTime(vol,now);g.gain.exponentialRampToValueAtTime(.001,now+.35);o.connect(g);o.start(now);o.stop(now+.36);}
-  else if(m===38||m===39){var b=aC.createBuffer(1,Math.floor(aC.sampleRate*.25),aC.sampleRate),d=b.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length)*.8;var s=aC.createBufferSource();s.buffer=b;var f=aC.createBiquadFilter();f.type='bandpass';f.frequency.value=2000;f.Q.value=.5;s.connect(f);f.connect(g);g.gain.setValueAtTime(vol*.75,now);g.gain.exponentialRampToValueAtTime(.001,now+.25);s.start(now);}
-  else if(m===42||m===46||m===55){var b=aC.createBuffer(1,Math.floor(aC.sampleRate*.15),aC.sampleRate),d=b.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=Math.random()*2-1;var s=aC.createBufferSource();s.buffer=b;var f=aC.createBiquadFilter();f.type='highpass';f.frequency.value=m===46?7000:10000;s.connect(f);f.connect(g);var dr=m===46?.2:.06;g.gain.setValueAtTime(vol*.45,now);g.gain.exponentialRampToValueAtTime(.001,now+dr);s.start(now);}
-  else if(m===49||m===51||m===57){var b=aC.createBuffer(1,Math.floor(aC.sampleRate*.6),aC.sampleRate),d=b.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length*.8);var s=aC.createBufferSource();s.buffer=b;var f=aC.createBiquadFilter();f.type='bandpass';f.frequency.value=m===51?5000:3500;f.Q.value=.3;s.connect(f);f.connect(g);g.gain.setValueAtTime(vol*.5,now);g.gain.exponentialRampToValueAtTime(.001,now+.6);s.start(now);}
-  else{var bf=40+(m-36)*6,o=aC.createOscillator();o.type='sine';o.frequency.setValueAtTime(bf*2,now);o.frequency.exponentialRampToValueAtTime(bf,now+.08);g.gain.setValueAtTime(vol*.7,now);g.gain.exponentialRampToValueAtTime(.001,now+.3);o.connect(g);o.start(now);o.stop(now+.32);}
+
+/* Wissel tussen bank 1-8 en 9-16 */
+function chBank() {
+  bank = bank ? 0 : 1; /* Toggle: 0→1 of 1→0 */
+  document.getElementById('bankBtn').textContent = bank ? 'Bank 9–16' : 'Bank 1–8';
+  buildPads();
 }
 
-function setModel(n){
-  mdl=n;['25','49','61','88'].forEach(function(x){document.getElementById('m'+x).classList.toggle('mon',+x===n);});
-  var c=MC[n],s=c.s+octOff*12;buildKB(c.n,s);allOf();updOct(s);
+/* Verwerk een pad-treffer: visueel + geluid */
+function padHit(pd, m) {
+  iA(); rA();
+  pd.classList.add('hit');                                 /* Animeer de pad ingedrukt */
+  setTimeout(function() { pd.classList.remove('hit'); }, 110); /* Animatie terug na 110ms */
+  pDrum(m); /* Speel het drumgeluid af */
+  flash();  /* Knippert het LED */
 }
-function chOct(d){octOff=Math.max(-3,Math.min(3,octOff+d));var c=MC[mdl],s=c.s+octOff*12;buildKB(c.n,s);allOf();updOct(s);}
-function updOct(s){document.getElementById('octV').textContent=NN[((s%12)+12)%12]+(Math.floor(s/12)-1);}
-function chTr(d){tr=Math.max(-12,Math.min(12,tr+d));document.getElementById('trV').textContent=(tr>0?'+':'')+tr;}
-function chVol(v){vol=v/100;if(mG)mG.gain.value=vol;document.getElementById('volV').textContent=v;}
-function setInstr(v){instr=+v;allOf();}
-function chSus(){sus=!sus;document.getElementById('susBtn').classList.toggle('on',sus);if(!sus){Object.keys(susH).forEach(function(n){nOf(+n,true);});susH={};}}
 
-function sS(e,t){e.preventDefault();sDr[t]=true;sM(e,t);}
-function sM(e,t){
-  if(!sDr[t])return;
-  var el=document.getElementById(t==='p'?'pitchS':'modS'),r=el.getBoundingClientRect();
-  var cy=e.touches?e.touches[0].clientY:e.clientY;
-  var ratio=Math.max(0,Math.min(1,(r.bottom-cy)/r.height));
-  if(t==='p'){pb=(ratio-.5)*4;document.getElementById('pitchF').style.height=(ratio*100)+'%';}
-  else{document.getElementById('modF').style.height=(ratio*100)+'%';}
-}
-function sE(e,t){sDr[t]=false;if(t==='p'){pb=0;document.getElementById('pitchF').style.height='50%';}}
-document.addEventListener('mouseup',function(){sDr={};});
-document.addEventListener('mousemove',function(e){if(sDr.p)sM(e,'p');if(sDr.m)sM(e,'m');});
+/* Genereer drumgeluiden via Web Audio (zonder samples) */
+function pDrum(m) {
+  if (!aC) return;
+  var now = aC.currentTime;
+  var g   = aC.createGain();
+  g.connect(mG); /* Verbind met master volume */
 
-var KBM={'a':'C','w':'C#','s':'D','e':'D#','d':'E','f':'F','t':'F#','g':'G','y':'G#','h':'A','u':'A#','j':'B','k':'C2','o':'C#2','l':'D2','p':'D#2'};
-var kbP={};
-document.addEventListener('keydown',function(e){
-  if(e.repeat||['SELECT','INPUT'].includes(e.target.tagName))return;
-  if(e.key===' '){e.preventDefault();chSus();return;}
-  var no=KBM[e.key.toLowerCase()];if(!no||kbP[e.key])return;kbP[e.key]=true;
-  var is2=no.endsWith('2'),nm=is2?no.slice(0,-1):no,ni=NN.indexOf(nm);if(ni<0)return;
-  var s=MC[mdl].s+octOff*12,bo=Math.floor(s/12)-1,mn=(bo+(is2?2:1))*12+ni+tr;
-  if(mn>=0&&mn<=127)nOn(mn,vel,false);
-});
-document.addEventListener('keyup',function(e){
-  var no=KBM[e.key.toLowerCase()];if(!no)return;delete kbP[e.key];
-  var is2=no.endsWith('2'),nm=is2?no.slice(0,-1):no,ni=NN.indexOf(nm);if(ni<0)return;
-  var s=MC[mdl].s+octOff*12,bo=Math.floor(s/12)-1,mn=(bo+(is2?2:1))*12+ni+tr;
-  nOf(mn);document.getElementById('noteTxt').textContent='— speel een toets —';
-});
+  if (m === 36) {
+    /* KICK: sinusgolf die snel in toonhoogte daalt (van 160Hz naar 40Hz) */
+    var o = aC.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(160, now);
+    o.frequency.exponentialRampToValueAtTime(40, now + .15);
+    g.gain.setValueAtTime(vol, now);
+    g.gain.exponentialRampToValueAtTime(.001, now + .35);
+    o.connect(g); o.start(now); o.stop(now + .36);
 
-var mAcc=null,mIns=[],actIn=null;
-async function initMidi(){
-  var b=document.getElementById('midiBadge'),l=document.getElementById('midiLbl');
-  if(!navigator.requestMIDIAccess){b.className='midi-badge err';l.textContent='MIDI: niet ondersteund';return;}
-  try{
-    mAcc=await navigator.requestMIDIAccess({sysex:false});
-    mAcc.onstatechange=updMidi;updMidi();
-  }catch(ex){b.className='midi-badge err';l.textContent='MIDI: geweigerd';}
-}
-function updMidi(){
-  if(!mAcc)return;
-  mIns=[];mAcc.inputs.forEach(function(i){mIns.push(i);});
-  var b=document.getElementById('midiBadge'),l=document.getElementById('midiLbl'),
-      bar=document.getElementById('midiBar'),sel=document.getElementById('midiSel'),
-      inf=document.getElementById('midiInfo');
-  mIns.forEach(function(i){i.onmidimessage=null;});
-  if(mIns.length===0){b.className='midi-badge';l.textContent='MIDI: geen apparaat';bar.classList.remove('show');actIn=null;return;}
-  sel.innerHTML='<option value="">— kies MIDI apparaat —</option>';
-  mIns.forEach(function(inp,i){var o=document.createElement('option');o.value=i;o.textContent=inp.name;sel.appendChild(o);});
-  bar.classList.add('show');
-  var idx=mIns.findIndex(function(d){return d.name.toLowerCase().includes('versa')||d.name.toLowerCase().includes('devine');});
-  if(idx<0)idx=0;sel.value=idx;pickMidi(idx);
-}
-function scanMidi(){updMidi();}
-function pickMidi(idx){
-  mIns.forEach(function(i){i.onmidimessage=null;});actIn=null;
-  document.getElementById('midiInfo').textContent='';
-  if(idx===''||idx===null||idx===undefined)return;
-  var inp=mIns[parseInt(idx)];if(!inp)return;
-  actIn=inp;inp.onmidimessage=onMidi;
-  document.getElementById('midiBadge').className='midi-badge ok';
-  document.getElementById('midiLbl').textContent=inp.name.length>22?inp.name.slice(0,20)+'…':inp.name;
-  document.getElementById('midiInfo').textContent='verbonden';
-  document.getElementById('devTxt').textContent=inp.name;
-}
-function onMidi(ev){
-  var cmd=ev.data[0]&0xF0,d1=ev.data[1],d2=ev.data[2];
-  iA();rA();
-  if(cmd===0x90&&d2>0){var f=d1+tr;if(f>=0&&f<=127)nOn(f,d2,true);}
-  else if(cmd===0x80||(cmd===0x90&&d2===0)){nOf(d1+tr);document.getElementById('noteTxt').textContent='— speel een toets —';}
-  else if(cmd===0xB0){
-    if(d1===64){sus=d2>=64;document.getElementById('susBtn').classList.toggle('on',sus);if(!sus){Object.keys(susH).forEach(function(n){nOf(+n,true);});susH={};}}
-    else if(d1===1){document.getElementById('modF').style.height=(d2/127*100)+'%';}
-    else if(d1===7){var v=Math.round(d2/127*100);vol=v/100;if(mG)mG.gain.value=vol;}
+  } else if (m === 38 || m === 39) {
+    /* SNARE / CLAP: ruis met bandpass-filter */
+    var b = aC.createBuffer(1, Math.floor(aC.sampleRate * .25), aC.sampleRate);
+    var d = b.getChannelData(0);
+    for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) * .8;
+    var src = aC.createBufferSource(); src.buffer = b;
+    var f = aC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2000; f.Q.value = .5;
+    src.connect(f); f.connect(g);
+    g.gain.setValueAtTime(vol * .75, now);
+    g.gain.exponentialRampToValueAtTime(.001, now + .25);
+    src.start(now);
+
+  } else if (m === 42 || m === 46 || m === 55) {
+    /* HI-HAT / SPLASH: ruis met hogepass-filter */
+    var b = aC.createBuffer(1, Math.floor(aC.sampleRate * .15), aC.sampleRate);
+    var d = b.getChannelData(0);
+    for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    var src = aC.createBufferSource(); src.buffer = b;
+    var f = aC.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = m === 46 ? 7000 : 10000;
+    src.connect(f); f.connect(g);
+    var dr = m === 46 ? .2 : .06; /* Open hi-hat klinkt langer */
+    g.gain.setValueAtTime(vol * .45, now);
+    g.gain.exponentialRampToValueAtTime(.001, now + dr);
+    src.start(now);
+
+  } else if (m === 49 || m === 51 || m === 57) {
+    /* CRASH / RIDE CYMBAL: ruis met bandpass, langere decay */
+    var b = aC.createBuffer(1, Math.floor(aC.sampleRate * .6), aC.sampleRate);
+    var d = b.getChannelData(0);
+    for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length * .8);
+    var src = aC.createBufferSource(); src.buffer = b;
+    var f = aC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = m === 51 ? 5000 : 3500; f.Q.value = .3;
+    src.connect(f); f.connect(g);
+    g.gain.setValueAtTime(vol * .5, now);
+    g.gain.exponentialRampToValueAtTime(.001, now + .6);
+    src.start(now);
+
+  } else {
+    /* OVERIGE SLAGEN (toms, percussie): sinusgolf die daalt */
+    var bf = 40 + (m - 36) * 6; /* Basistoonhoogte op basis van nootnummer */
+    var o  = aC.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(bf * 2, now);
+    o.frequency.exponentialRampToValueAtTime(bf, now + .08);
+    g.gain.setValueAtTime(vol * .7, now);
+    g.gain.exponentialRampToValueAtTime(.001, now + .3);
+    o.connect(g); o.start(now); o.stop(now + .32);
   }
-  else if(cmd===0xE0){var bend=((d2<<7)|d1)-8192;pb=(bend/8192)*2;document.getElementById('pitchF').style.height=(((bend+8192)/16384)*100)+'%';}
-  flash();
-}
-var ledT;
-function flash(){var l=document.getElementById('led');l.classList.add('f');clearTimeout(ledT);ledT=setTimeout(function(){l.classList.remove('f');},120);}
-
-if('serviceWorker' in navigator){
-  window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});
 }
 
-buildPads();
-setModel(49);
-initMidi();
+/* ── MODEL WISSELEN ──────────────────────────────────────────────*/
+function setModel(n) {
+  mdl = n;
+  /* Update de knoppen: de actieve knop krijgt de 'mon' klasse */
+  ['25','49','61','88'].forEach(function(x) {
+    document.getElementById('m' + x).classList.toggle('mon', +x === n);
+  });
+  var c = MC[n];
+  var s = c.s + octOff * 12; /* Startpositie inclusief octaafverschuiving */
+  buildKB(c.n, s);           /* Herbouw het toetsenbord */
+  allOf();                    /* Stop alle noten */
+  updOct(s);                  /* Update de octaaf-weergave */
+}
+
+/* Verander het octaaf met d stapjes (+1 of -1) */
+function chOct(d) {
+  octOff = Math.max(-3, Math.min(3, octOff + d)); /* Begrens tussen -3 en +3 */
+  var c  = MC[mdl];
+  var s  = c.s + octOff * 12;
+  buildKB(c.n, s);
+  allOf();
+  updOct(s);
+}
+
+/* Toon het huidige startoctaaf in de topbar */
+function updOct(s) {
+  document.getElementById('octV').textContent = NN[((s % 12) + 12) % 12] + (Math.floor(s / 12) - 1);
+}
+
+/* Verander de transpositie (halve tonen) */
+function chTr(d) {
+  tr = Math.max(-12, Math.min(12, tr + d)); /* Begrens tussen -12 en +12 halve tonen */
+  document.getElementById('trV').textContent = (tr > 0 ? '+' : '') + tr;
+}
+
+/* Verander het volume */
+function chVol(v) {
+  vol = v / 100; /* Zet 0-100 om naar 0.0-1.0 */
+  if (mG) mG.gain.value = vol; /* Pas de master gain aan */
+  document.getElementById('volV').textContent = v;
+}
+
+/* Wissel het instrument (GM programmanummer) */
+function setInstr(v) {
+  instr = +v;
+  allOf(); /* Stop alle noten die de oude klank gebruiken */
+}
+
+/* Schakel sustain aan of uit */
+function chSus() {
+  sus = !sus;
+  document.getElementById('susBtn').classList.toggle('on', sus);
+  if (!sus) {
+    /* Sustain uitgeschakeld: stop alle vastgehouden noten */
+    Object.keys(susH).forEach(function(n) { nOf(+n, true); });
+    susH = {};
+  }
+}
+
+/* ── TOUCH STRIPS (Pitch Bend en Modulatie) ──────────────────────*/
+
+/* Start slepen op een strip */
+function sS(e, t) {
+  e.preventDefault();
+  sDr[t] = true; /* Markeer als sleepbezig */
+  sM(e, t);      /* Verwerk de huidige positie direct */
+}
+
+/* Verwerk slepen (bewegen van vinger/muis op een strip) */
+function sM(e, t) {
+  if (!sDr[t]) return; /* Niet aan het slepen? Niets te doen */
+  var el    = document.getElementById(t === 'p' ? 'pitchS' : 'modS');
+  var r     = el.getBoundingClientRect(); /* Positie en afmetingen van de strip */
+  var cy    = e.touches ? e.touches[0].clientY : e.clientY; /* Huidige Y-positie */
+  var ratio = Math.max(0, Math.min(1, (r.bottom - cy) / r.height)); /* 0=onderaan, 1=bovenaan */
+
+  if (t === 'p') {
+    /* Pitch Bend: 0=beneden (toon lager), 0.5=midden (normaal), 1=boven (toon hoger) */
+    pb = (ratio - .5) * 4; /* Omzetten naar -2 tot +2 octaven */
+    document.getElementById('pitchF').style.height = (ratio * 100) + '%';
+  } else {
+    /* Modulatie: sleept van 0% (geen effect) tot 100% (maximum effect) */
+    document.getElementById('modF').style.height = (ratio * 100) + '%';
+  }
+}
+
+/* Beëindig het slepen op een strip */
+function sE(e, t) {
+  sDr[t] = false;
+  if (t === 'p') {
+    /* Pitch Bend: veert terug naar het midden */
+    pb = 0;
+    document.getElementById('pitchF').style.height = '50%';
+  }
+  /* Modulatie behoudt zijn positie (zoals de echte VersaKey werkt) */
+}
+
+/* Muis loslaten buiten een strip: stop slepen */
+document.addEventListener('mouseup', function() { sDr = {}; });
+
+/* Muisbewegen: verwerk strip-slepen ook als muis buiten het element is */
+document.addEventListener('mousemove', function(e) {
+  if (sDr.p) sM(e, 'p');
+  if (sDr.m) sM(e, 'm');
+});
+
+/* ── COMPUTER TOETSENBORD MAPPING ────────────────────────────────
+   Speel noten via het computertoetsenbord (handig voor testen)
+   a=C, w=C#, s=D, e=D#, d=E, f=F, t=F#, g=G, y=G#, h=A, u=A#, j=B
+   k=C (hogere octaaf), etc. */
+var KBM = {
+  'a':'C', 'w':'C#', 's':'D', 'e':'D#', 'd':'E', 'f':'F',
+  't':'F#', 'g':'G', 'y':'G#', 'h':'A', 'u':'A#', 'j':'B',
+  'k':'C2', 'o':'C#2', 'l':'D2', 'p':'D#2'
+};
+var kbP = {}; /* Bijhouden welke toetsen ingedrukt zijn (om herhaling te voorkomen) */
+
+/* Toetsenbord indrukken */
+document.addEventListener('keydown', function(e) {
+  if (e.repeat) return; /* Automatische herhaling van OS negeren */
+  if (['SELECT','INPUT'].includes(e.target.tagName)) return; /* Niet in tekstvelden */
+  if (e.key === ' ') { e.preventDefault(); chSus(); return; } /* Spatie = sustain */
+
+  var no = KBM[e.key.toLowerCase()];
+  if (!no || kbP[e.key]) return; /* Niet in mapping of al ingedrukt */
+  kbP[e.key] = true;
+
+  var is2 = no.endsWith('2'); /* Is het een toets van het hogere octaaf? */
+  var nm  = is2 ? no.slice(0, -1) : no;
+  var ni  = NN.indexOf(nm);
+  if (ni < 0) return;
+
+  var s  = MC[mdl].s + octOff * 12;
+  var bo = Math.floor(s / 12) - 1; /* Basisoctaaf */
+  var mn = (bo + (is2 ? 2 : 1)) * 12 + ni + tr; /* MIDI-nootnummer */
+  if (mn >= 0 && mn <= 127) nOn(mn, vel, false);
+});
+
+/* Toetsenbord loslaten */
+document.addEventListener('keyup', function(e) {
+  var no = KBM[e.key.toLowerCase()];
+  if (!no) return;
+  delete kbP[e.key];
+  var is2 = no.endsWith('2');
+  var nm  = is2 ? no.slice(0, -1) : no;
+  var ni  = NN.indexOf(nm);
+  if (ni < 0) return;
+  var s  = MC[mdl].s + octOff * 12;
+  var bo = Math.floor(s / 12) - 1;
+  var mn = (bo + (is2 ? 2 : 1)) * 12 + ni + tr;
+  nOf(mn);
+  document.getElementById('noteTxt').textContent = '— speel een toets —';
+});
+
+/* ── MIDI VIA WEB MIDI API (USB-KABEL) ───────────────────────────
+   De Web MIDI API werkt in Chrome en Edge op Windows en Android.
+   De VersaKey moet verbonden zijn via USB-kabel. */
+
+/* Start de MIDI-verbinding op */
+async function initMidi() {
+  var b = document.getElementById('midiBadge');
+  var l = document.getElementById('midiLbl');
+  var hint = document.getElementById('usbHint');
+  var hintDetail = document.getElementById('usbHintDetail');
+
+  /* Controleer of de browser de Web MIDI API ondersteunt */
+  if (!navigator.requestMIDIAccess) {
+    b.className = 'midi-badge err';
+    l.textContent = 'MIDI: niet ondersteund';
+    hint.classList.add('show');
+    hintDetail.textContent = '→ Gebruik Chrome of Edge (Firefox ondersteunt geen USB-MIDI).';
+    console.warn('[VersaKey] Web MIDI API niet beschikbaar in deze browser');
+    return;
+  }
+
+  try {
+    /* Vraag toegang tot MIDI-apparaten (sysex=false = geen systeemberichten nodig) */
+    mAcc = await navigator.requestMIDIAccess({ sysex: false });
+    console.log('[VersaKey] MIDI toegang verkregen, zoek naar apparaten...');
+
+    /* Luister naar apparaatwijzigingen (USB in-/uitprikken) */
+    mAcc.onstatechange = function(e) {
+      console.log('[VersaKey] MIDI status gewijzigd:', e.port.name, e.port.state);
+      updMidi();
+    };
+
+    updMidi(); /* Verwerk de beschikbare apparaten direct */
+
+  } catch (ex) {
+    /* Gebruiker heeft MIDI-toegang geweigerd */
+    b.className = 'midi-badge err';
+    l.textContent = 'MIDI: geweigerd';
+    hint.classList.add('show');
+    hintDetail.textContent = '→ Klik op "Toestaan" als de browser vraagt om MIDI-toegang.';
+    console.error('[VersaKey] MIDI toegang geweigerd:', ex);
+  }
+}
+
+/* Vernieuw de lijst van MIDI-apparaten */
+function updMidi() {
+  if (!mAcc) return;
+
+  /* Verzamel alle invoerapparaten */
+  mIns = [];
+  mAcc.inputs.forEach(function(i) { mIns.push(i); });
+
+  var b    = document.getElementById('midiBadge');
+  var l    = document.getElementById('midiLbl');
+  var bar  = document.getElementById('midiBar');
+  var sel  = document.getElementById('midiSel');
+  var hint = document.getElementById('usbHint');
+  var hintDetail = document.getElementById('usbHintDetail');
+
+  /* Stop alle bestaande MIDI-luisteraars */
+  mIns.forEach(function(i) { i.onmidimessage = null; });
+
+  if (mIns.length === 0) {
+    /* Geen MIDI-apparaten gevonden */
+    b.className  = 'midi-badge';
+    l.textContent = 'MIDI: geen apparaat';
+    bar.classList.remove('show');
+    hint.classList.add('show');
+    hintDetail.textContent = '→ Sluit je VersaKey aan via USB en probeer opnieuw.';
+    actIn = null;
+    console.log('[VersaKey] Geen MIDI-apparaten gevonden');
+    return;
+  }
+
+  /* Apparaten gevonden: verberg de hint en vul de dropdown */
+  hint.classList.remove('show');
+  sel.innerHTML = '<option value="">— kies MIDI apparaat —</option>';
+  mIns.forEach(function(inp, i) {
+    var o = document.createElement('option');
+    o.value       = i;
+    o.textContent = inp.name;
+    sel.appendChild(o);
+  });
+  bar.classList.add('show');
+
+  /* Zoek automatisch naar een VersaKey of Devine apparaat */
+  var idx = mIns.findIndex(function(d) {
+    return d.name.toLowerCase().includes('versa') ||
+           d.name.toLowerCase().includes('devine');
+  });
+  if (idx < 0) idx = 0; /* Geen VersaKey gevonden? Gebruik het eerste apparaat */
+
+  sel.value = idx;
+  pickMidi(idx); /* Selecteer en verbind het apparaat */
+
+  console.log('[VersaKey] MIDI apparaten gevonden:', mIns.map(function(d) { return d.name; }));
+}
+
+/* Opnieuw scannen (bij klikken op de badge) */
+function scanMidi() { updMidi(); }
+
+/* Selecteer een MIDI-invoerapparaat */
+function pickMidi(idx) {
+  /* Stop alle bestaande MIDI-luisteraars */
+  mIns.forEach(function(i) { i.onmidimessage = null; });
+  actIn = null;
+  document.getElementById('midiInfo').textContent = '';
+
+  if (idx === '' || idx === null || idx === undefined) return;
+
+  var inp = mIns[parseInt(idx)];
+  if (!inp) return;
+
+  /* Verbind het geselecteerde apparaat */
+  actIn = inp;
+  inp.onmidimessage = onMidi; /* Stel de callback in voor inkomende MIDI-berichten */
+
+  /* Update de UI */
+  document.getElementById('midiBadge').className = 'midi-badge ok';
+  document.getElementById('midiLbl').textContent =
+    inp.name.length > 22 ? inp.name.slice(0, 20) + '…' : inp.name;
+  document.getElementById('midiInfo').textContent = 'verbonden';
+  document.getElementById('devTxt').textContent   = inp.name;
+
+  console.log('[VersaKey] Verbonden met MIDI-apparaat:', inp.name);
+}
+
+/* Verwerk inkomend MIDI-bericht van het hardware keyboard */
+function onMidi(ev) {
+  /* MIDI-berichten bestaan uit 2 of 3 bytes:
+     ev.data[0] = status byte (type + kanaal)
+     ev.data[1] = data byte 1 (nootnummer of CC-nummer)
+     ev.data[2] = data byte 2 (velocity of CC-waarde) */
+  var cmd = ev.data[0] & 0xF0; /* Status: bovenste 4 bits = berichttype */
+  var d1  = ev.data[1];         /* Nootnummer of CC-nummer */
+  var d2  = ev.data[2];         /* Velocity of waarde */
+
+  iA(); rA(); /* Zorg dat audio werkt */
+
+  if (cmd === 0x90 && d2 > 0) {
+    /* NOTE ON: noot ingedrukt */
+    var f = d1 + tr; /* Voeg transpositie toe */
+    if (f >= 0 && f <= 127) nOn(f, d2, true); /* Speel de noot met hardware-vlag */
+
+  } else if (cmd === 0x80 || (cmd === 0x90 && d2 === 0)) {
+    /* NOTE OFF: noot losgelaten (0x80 of Note On met velocity 0) */
+    nOf(d1 + tr);
+    document.getElementById('noteTxt').textContent = '— speel een toets —';
+
+  } else if (cmd === 0xB0) {
+    /* CONTROL CHANGE: een knop/slider/pedaal is bewogen */
+    if (d1 === 64) {
+      /* CC64 = Sustain pedaal: >= 64 is aan, < 64 is uit */
+      sus = d2 >= 64;
+      document.getElementById('susBtn').classList.toggle('on', sus);
+      if (!sus) {
+        Object.keys(susH).forEach(function(n) { nOf(+n, true); });
+        susH = {};
+      }
+    } else if (d1 === 1) {
+      /* CC1 = Modulatiewiel: update de Mod-strip visueel */
+      document.getElementById('modF').style.height = (d2 / 127 * 100) + '%';
+    } else if (d1 === 7) {
+      /* CC7 = Volume: update het volume */
+      var v = Math.round(d2 / 127 * 100);
+      vol = v / 100;
+      if (mG) mG.gain.value = vol;
+      document.getElementById('volV').textContent = v;
+    }
+
+  } else if (cmd === 0xE0) {
+    /* PITCH BEND: toonhoogte buigen
+       Twee bytes samen vormen een 14-bits waarde: -8192 (laag) tot +8191 (hoog) */
+    var bend = ((d2 << 7) | d1) - 8192;
+    pb = (bend / 8192) * 2; /* Omzetten naar -2 tot +2 octaven */
+    document.getElementById('pitchF').style.height = (((bend + 8192) / 16384) * 100) + '%';
+  }
+
+  flash(); /* Laat het LED knipperen */
+}
+
+/* ── LED LAMPJE ─────────────────────────────────────────────────
+   Knippert groen bij elke MIDI-activiteit */
+var ledT; /* Timer voor het uitschakelen van het LED */
+function flash() {
+  var l = document.getElementById('led');
+  l.classList.add('f');                                  /* Zet groen LED aan */
+  clearTimeout(ledT);                                    /* Reset de timer */
+  ledT = setTimeout(function() { l.classList.remove('f'); }, 120); /* Uit na 120ms */
+}
+
+/* ── SERVICE WORKER (PWA offline) ───────────────────────────────
+   Registreer de service worker zodat de app ook offline werkt */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('sw.js')
+      .then(function(reg) { console.log('[VersaKey] Service Worker geregistreerd:', reg.scope); })
+      .catch(function(err) { console.warn('[VersaKey] Service Worker mislukt:', err); });
+  });
+}
+
+/* ── INITIALISATIE ───────────────────────────────────────────────
+   Start de app op als de pagina geladen is */
+buildPads();    /* Maak de drum-pads */
+setModel(49);  /* Laad het standaard VK-49 model */
+initMidi();    /* Start de USB-MIDI verbinding */
+
+console.log('[VersaKey] App gestart — v' + APP_VERSION + ' | Verbind je VersaKey via USB');
 </script>
 </body>
 </html>

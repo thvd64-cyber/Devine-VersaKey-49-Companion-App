@@ -2,6 +2,68 @@
 
 ---
 
+## v2.2.0 — 2026-04-05 · "Zoom piano + strips"
+
+### ✅ Toegevoegd
+- **Zoom-knop** in de statusbalk onderaan (`−` `1×` `+`)
+  - 3 vaste niveaus: **1×** (normaal) · **1.5×** (middelgroot) · **2×** (groot)
+  - Zoomt **alleen** de piano-toetsen en de 2 touch-strips (PITCH + MOD)
+  - De rest van de app (topbar, encoders, pads) blijft ongewijzigd
+  - `−` en `+` worden automatisch uitgegrayd aan de uiteinden
+  - Zoom-niveau wordt **onthouden** via `localStorage` (blijft na herladen)
+- **CSS `--zoom`** custom property op `:root` — strips schalen via `calc()`
+- **`ZOOM_LEVELS`** array `[1, 1.5, 2]` + `zoomIdx` toestandsvariabele
+- **`applyZoom()`** — berekent nieuwe toetsafmetingen, past CSS aan, herbouwt piano
+- **`chZoom(d)`** — verhoog of verlaag het zoom-niveau met 1 stap
+
+### 🔧 Verbeterd
+- `buildKB(n, s, ww, wh, bw, bh)` — accepteert nu optionele afmetingsparameters zodat zoom direct meegegeven kan worden
+- Initialisatie roept `applyZoom()` aan ná `setModel()` zodat het opgeslagen zoom-niveau direct actief is bij openen
+
+### sw.js
+- Cache `versakey-v3` → **`versakey-v4`**
+
+---
+
+## v2.1.0 — 2026-04-05 · "Rotary Encoders A+B"
+
+### ✅ Toegevoegd
+- Rotary Encoder sectie met 8 live CC-meter balken (Voorstel A)
+- MIDI Learn modus per encoder via CC-badge klikken (Voorstel B)
+- `initEncMap()`, `buildEncoders()`, `updEncoder()`, `ccLearn()`, `stopLearn()`, `finishLearn()`, `resetLearn()`
+
+### sw.js
+- Cache `versakey-v2` → `versakey-v3`
+
+---
+
+## v2.0.0 — 2026-04-05 · "Chrome & USB-MIDI focus"
+
+### 🗑️ Verwijderd
+- AudioKit / Synth One J6 sectie volledig verwijderd
+- Dubbele HTML-code verwijderd
+
+### ✅ Toegevoegd
+- USB-hint balk, versie-badge, inline code-commentaar, console logging
+- Automatische VersaKey-herkenning, `onstatechange` handler
+
+---
+
+## Backlog
+
+| Prioriteit | Feature | Status |
+|---|---|---|
+| 🔴 Hoog | Voorstel C: Preset-systeem voor encoder-combinaties | Gepland |
+| 🔴 Hoog | Pad-programmatie uitbreiden | Gepland |
+| 🟡 Middel | Pad kleuren aanpasbaar via UI | Gepland |
+| 🟡 Middel | Velocity curve instelling in UI | Gepland |
+| 🟢 Laag | Piano roll visualizer integreren | Gepland |
+| 🟢 Laag | Dark mode | Gepland |
+| ⏸️ Gepauzeerd | AudioKit / Synth One J6 integratie | On hold |
+
+
+---
+
 ## v2.1.0 — 2026-04-05 · "Rotary Encoders A+B"
 
 ### ✅ Toegevoegd

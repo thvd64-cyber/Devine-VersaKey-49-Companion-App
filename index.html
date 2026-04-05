@@ -1,10 +1,23 @@
 <!DOCTYPE html>
 <!-- ============================================================
      Devine VersaKey — MIDI Controller App
-     VERSIE : 2.0.0
+     VERSIE : 2.1.0
      DATUM  : 2026-04-05
      DOEL   : PWA voor Windows, Android, Chrome/Edge via USB-MIDI
-     
+
+     CHANGELOG v2.1.0 (t.o.v. v2.0.0):
+     - NIEUW: Rotary Encoder sectie toegevoegd (R1-R8)
+       * Voorstel A: 8 live CC-meter balken die bewegen bij draaien
+       * Voorstel B: MIDI Learn modus per knop
+       * Leer-knop per encoder: klik → draai hardware knop → koppeling opgeslagen
+       * Kleurcodering per groep: oranje=filter, groen=LFO, paars=envelope, blauw=FX, grijs=vol
+       * Waarde-getal (0-127) live bijgewerkt naast elke balk
+       * CC-nummer badge zichtbaar per encoder
+       * Learn-modus indicator: balk pulseert tijdens wachten op hardware input
+     - onMidi() uitgebreid: CC-berichten nu ook naar rotary sectie gerouteerd
+     - ccLearn() en stopLearn() toegevoegd voor MIDI Learn flow
+     - updEncoder() toegevoegd voor live balk-animatie
+
      CHANGELOG v2.0.0 (t.o.v. v1.x):
      - AudioKit J6 sectie verwijderd (niet verder ontwikkeld)
      - Dubbele HTML-code verwijderd (was 2x dezelfde app in 1 bestand)
@@ -277,7 +290,146 @@ body {
 .usb-hint.show { display: flex; }   /* Zichtbaar als er geen MIDI is */
 .usb-hint a    { color: var(--accent); text-decoration: underline; cursor: pointer; }
 
-/* ── DRUM PADS BALK ─────────────────────────────────────────────*/
+/* ── ROTARY ENCODER SECTIE ──────────────────────────────────────
+   De sectie met 8 live CC-meter balken (Voorstel A)
+   en MIDI Learn knoppen per encoder (Voorstel B) */
+.enc-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 16px;
+  background: var(--surface);       /* Iets lichter dan de pads-balk */
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+/* Raster van 8 encoder-blokken naast elkaar */
+.enc-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr); /* 8 gelijke kolommen */
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Eén encoder-blok: naam + CC badge + balk + waarde + learn-knop */
+.enc-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 5px 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  position: relative;
+  transition: border-color .15s;
+  min-width: 0;
+}
+
+/* Encoder-blok actief in learn-modus: gekleurde rand pulseert */
+.enc-cell.learning {
+  border-color: var(--accent);
+  animation: learnPulse 0.7s ease-in-out infinite alternate; /* Pulserend effect */
+}
+
+/* Pulseer-animatie: de rand gloeit op en daalt weer */
+@keyframes learnPulse {
+  from { box-shadow: 0 0 0 0 rgba(139,111,58,.0); }
+  to   { box-shadow: 0 0 0 3px rgba(139,111,58,.35); }
+}
+
+/* Bovenste rij van een encoder-blok: naam links, CC-badge rechts */
+.enc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Naam van de parameter (bijv. "Cutoff") */
+.enc-name {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Lange namen krijgen "..." */
+  max-width: 58px;
+}
+
+/* CC-nummer badge (bijv. "CC74") — klik om te leren */
+.enc-cc {
+  font-size: 8px;
+  color: var(--muted);
+  font-family: 'Space Mono', monospace;
+  background: var(--surface2);
+  padding: 1px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .12s;
+  flex-shrink: 0;
+}
+.enc-cc:hover         { background: var(--accent); color: #fff; } /* Hover = oranje */
+.enc-cc.learn-active  { background: var(--accent); color: #fff; } /* Wacht op hardware-input */
+
+/* De meter-balk achtergrond (grijs, volledige breedte) */
+.enc-track {
+  width: 100%;
+  height: 6px;
+  background: var(--surface3);
+  border-radius: 3px;
+  overflow: hidden;                 /* Zorg dat de vulling niet buiten de balk uitsteekt */
+  position: relative;
+}
+
+/* De gekleurde vulling van de balk (beweegt van 0% tot 100% breedte) */
+.enc-fill {
+  height: 100%;
+  border-radius: 3px;
+  width: 50%;                       /* Standaard op 50% (MIDI waarde 64) */
+  transition: width .04s linear;    /* Vloeiende overgang bij draaien */
+}
+
+/* Onderste rij: waarde-getal rechts */
+.enc-foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+/* De numerieke waarde (0-127) */
+.enc-val {
+  font-size: 9px;
+  color: var(--muted);
+  font-family: 'Space Mono', monospace;
+}
+
+/* Kleurcodering per encoder-groep (zelfde als in het diagram):
+   oranje = filter (R1,R2), groen = LFO (R3,R4),
+   paars  = envelope (R5,R6), blauw = FX (R7), grijs = volume (R8) */
+.enc-fill.c-amber  { background: #b8935a; }
+.enc-fill.c-teal   { background: #1D9E75; }
+.enc-fill.c-purple { background: #7F77DD; }
+.enc-fill.c-blue   { background: #378ADD; }
+.enc-fill.c-gray   { background: #888780; }
+
+/* Learn-status tekst links naast het raster */
+.enc-learn-status {
+  font-size: 9px;
+  font-family: 'Space Mono', monospace;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+  writing-mode: horizontal-tb;
+}
+.enc-learn-status.active { color: var(--accent); font-weight: 700; }
+
+/* Responsive: op kleine schermen 4 kolommen i.p.v. 8 */
+@media (max-width: 650px) {
+  .enc-grid { grid-template-columns: repeat(4, 1fr); }
+}
 .pads-bar {
   display: flex;
   align-items: center;
@@ -548,7 +700,7 @@ body {
   </div>
 
   <!-- Versie-badge naast logo -->
-  <span class="version-badge">v2.0</span>
+  <span class="version-badge">v2.1</span>
 
   <div class="sep"></div>
 
@@ -653,6 +805,27 @@ body {
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════
+     ROTARY ENCODER SECTIE (v2.1) — Voorstel A + B gecombineerd
+     A: 8 live meter-balken die bewegen als je de knop draait
+     B: MIDI Learn — klik op CC-badge → draai hardware knop → opgeslagen
+     ══════════════════════════════════════════════════════════════ -->
+<div class="enc-bar">
+
+  <!-- Label links van het raster -->
+  <span class="lbl" style="flex-shrink:0;">Encoders</span>
+
+  <!-- Status-tekst die aangeeft of learn-modus actief is -->
+  <span class="enc-learn-status" id="encLearnStatus">— klik CC-badge om te leren —</span>
+
+  <!-- Het raster van 8 encoder-blokken (wordt gevuld door buildEncoders() in JS) -->
+  <div class="enc-grid" id="encGrid"></div>
+
+  <!-- Knop om alle leer-koppelingen te wissen -->
+  <button class="btn" onclick="resetLearn()" style="flex-shrink:0;font-size:10px;" title="Verwijder alle geleerde CC-koppelingen">Reset Learn</button>
+
+</div><!-- /enc-bar -->
+
+<!-- ══════════════════════════════════════════════════════════════
      DRUM PADS BALK
      ══════════════════════════════════════════════════════════════ -->
 <div class="pads-bar">
@@ -733,7 +906,7 @@ body {
 <script>
 /* ── VERSIE INFO ─────────────────────────────────────────────────
    Sla de versie op zodat we hem kunnen loggen en vergelijken */
-var APP_VERSION = '2.0.0';
+var APP_VERSION = '2.1.0';
 console.log('[VersaKey] app versie', APP_VERSION, '| USB-MIDI modus voor Chrome/Windows/Android');
 
 /* ── NOOT NAMEN EN PIANO LAYOUT ──────────────────────────────────
@@ -773,6 +946,32 @@ var mdl    = 49;      /* Actief klaviermodel (25, 49, 61 of 88) */
 var pb     = 0;       /* Pitch Bend waarde (-2 tot +2 octaven) */
 var sDr    = {};      /* Strip sleepstatus: {p: boolean, m: boolean} */
 var bank   = 0;       /* Actieve pad-bank: 0 = pads 1-8, 1 = pads 9-16 */
+
+/* ── ROTARY ENCODER DEFINITIE (v2.1) ────────────────────────────
+   De 8 fysieke draaiknoppen op de VersaKey met hun standaard CC-nummers.
+   n   = naam die in de app getoond wordt
+   cc  = standaard MIDI CC-nummer (uit het handboek)
+   col = kleurklasse voor de meter-balk (zelfde als in het diagram)
+   Groepen: oranje=filter, groen=LFO, paars=envelope, blauw=FX, grijs=vol */
+var ENC_DEF = [
+  { n: 'Cutoff',  cc: 74, col: 'c-amber'  }, /* R1: filterfrequentie */
+  { n: 'Rez',     cc: 71, col: 'c-amber'  }, /* R2: filter resonantie */
+  { n: 'LFO Rate',cc: 21, col: 'c-teal'   }, /* R3: LFO snelheid */
+  { n: 'Detune',  cc: 18, col: 'c-teal'   }, /* R4: oscillator detune */
+  { n: 'Attack',  cc: 73, col: 'c-purple' }, /* R5: amp attack tijd */
+  { n: 'Release', cc: 72, col: 'c-purple' }, /* R6: amp release tijd */
+  { n: 'Chorus',  cc: 93, col: 'c-blue'   }, /* R7: chorus diepte */
+  { n: 'Volume',  cc:  7, col: 'c-gray'   }  /* R8: master volume */
+];
+
+/* ── ENCODER TOESTANDSVARIABELEN (v2.1) ─────────────────────────
+   encVals  = huidige CC-waarden per encoder (0-127), start op 64 (midden)
+   encLearn = index van de encoder die momenteel in learn-modus staat (null = geen)
+   encMap   = {cc-nummer: encoder-index} — welke CC stuurt welke encoder aan?
+              Wordt bijgewerkt door MIDI Learn */
+var encVals  = [64, 64, 64, 64, 64, 64, 64, 64]; /* Alle encoders starten op 64 (midden) */
+var encLearn = null;  /* Geen encoder in learn-modus bij opstart */
+var encMap   = {};    /* Wordt gevuld op basis van ENC_DEF én geleerde koppelingen */
 
 /* ── MIDI VARIABELEN ─────────────────────────────────────────────*/
 var mAcc = null;      /* MIDIAccess object (van de browser WebMIDI API) */
@@ -991,6 +1190,213 @@ function kDn(m) {
 function kUp(m) {
   nOf(m + tr); /* Stop de noot */
   document.getElementById('noteTxt').textContent = '— speel een toets —';
+}
+
+/* ── ENCODER FUNCTIES (v2.1) ────────────────────────────────────*/
+
+/* Bouw de standaard CC-map op basis van ENC_DEF
+   Dit zorgt dat de app bij opstart al weet: CC74 → encoder 0, CC71 → encoder 1, etc. */
+function initEncMap() {
+  encMap = {}; /* Leegmaken voor een frisse start */
+  ENC_DEF.forEach(function(e, i) {
+    encMap[e.cc] = i; /* Koppel: CC-nummer → encoder-index */
+  });
+}
+
+/* Bouw het HTML-raster van 8 encoder-blokken */
+function buildEncoders() {
+  var g = document.getElementById('encGrid');
+  g.innerHTML = ''; /* Leegmaken bij herbouw */
+
+  ENC_DEF.forEach(function(e, i) {
+    /* Maak het buitenste blokje aan */
+    var cell = document.createElement('div');
+    cell.className  = 'enc-cell';
+    cell.id         = 'enc' + i; /* ID voor later opzoeken: enc0, enc1, ... enc7 */
+
+    /* ── Bovenste rij: naam + CC-badge ── */
+    var head = document.createElement('div');
+    head.className = 'enc-head';
+
+    /* Naam van de parameter */
+    var nm = document.createElement('span');
+    nm.className   = 'enc-name';
+    nm.id          = 'encName' + i; /* ID voor aanpassen bij learn */
+    nm.textContent = e.n;           /* Bijv. "Cutoff" */
+
+    /* CC-nummer badge — klik hierop om MIDI Learn te starten */
+    var cc = document.createElement('span');
+    cc.className   = 'enc-cc';
+    cc.id          = 'encCC' + i;   /* ID voor aanpassen bij learn */
+    cc.textContent = 'CC' + e.cc;   /* Bijv. "CC74" */
+    cc.title       = 'Klik om MIDI Learn te starten voor R' + (i + 1);
+    /* Bij klikken: start of stop de learn-modus voor deze encoder */
+    cc.addEventListener('click', function() { ccLearn(i); });
+
+    head.appendChild(nm);
+    head.appendChild(cc);
+
+    /* ── Meter-balk ── */
+    var track = document.createElement('div');
+    track.className = 'enc-track';
+
+    var fill = document.createElement('div');
+    fill.className = 'enc-fill ' + e.col; /* Kleurklasse op basis van groep */
+    fill.id        = 'encFill' + i;       /* ID voor live aanpassen van breedte */
+    fill.style.width = Math.round(encVals[i] / 127 * 100) + '%'; /* Start op 50% */
+
+    track.appendChild(fill);
+
+    /* ── Onderste rij: waarde-getal ── */
+    var foot = document.createElement('div');
+    foot.className = 'enc-foot';
+
+    var val = document.createElement('span');
+    val.className   = 'enc-val';
+    val.id          = 'encVal' + i; /* ID voor live bijwerken van de waarde */
+    val.textContent = encVals[i];   /* Start op 64 */
+
+    foot.appendChild(val);
+
+    /* Alles samenvoegen in het blokje */
+    cell.appendChild(head);
+    cell.appendChild(track);
+    cell.appendChild(foot);
+    g.appendChild(cell);
+  });
+}
+
+/* Update de visuele balk en het getal van één encoder.
+   i = encoder-index (0-7), v = nieuwe CC-waarde (0-127) */
+function updEncoder(i, v) {
+  encVals[i] = v; /* Sla de nieuwe waarde op */
+
+  /* Update de breedte van de balk: 0=0%, 127=100% */
+  var fill = document.getElementById('encFill' + i);
+  if (fill) fill.style.width = Math.round(v / 127 * 100) + '%';
+
+  /* Update het getal */
+  var val = document.getElementById('encVal' + i);
+  if (val) val.textContent = v;
+}
+
+/* Start MIDI Learn voor encoder i.
+   Als er al een encoder in learn-modus is, stop die eerst.
+   Als je op dezelfde encoder klikt: schakel learn-modus uit. */
+function ccLearn(i) {
+  var statusEl = document.getElementById('encLearnStatus');
+
+  /* Als dezelfde encoder al in learn-modus staat: uitzetten */
+  if (encLearn === i) {
+    stopLearn();
+    return;
+  }
+
+  /* Stop eventuele vorige learn-sessie */
+  if (encLearn !== null) stopLearn(true); /* true = stille stop, geen status-reset */
+
+  /* Start learn-modus voor encoder i */
+  encLearn = i;
+
+  /* Visuele feedback: blok pulseert, CC-badge oranje */
+  var cell = document.getElementById('enc' + i);
+  var cc   = document.getElementById('encCC' + i);
+  if (cell) cell.classList.add('learning');   /* Pulserende rand */
+  if (cc)   cc.classList.add('learn-active'); /* Oranje badge */
+
+  /* Status-tekst bijwerken */
+  statusEl.textContent = 'R' + (i + 1) + ' wacht op knop... (draai de encoder)';
+  statusEl.classList.add('active');
+
+  console.log('[VersaKey] Learn-modus gestart voor encoder', i, '(R' + (i+1) + ')');
+}
+
+/* Stop de huidige MIDI Learn sessie.
+   silent = true: geen status-tekst resetten (bij wisselen naar andere encoder) */
+function stopLearn(silent) {
+  if (encLearn === null) return; /* Niets te stoppen */
+
+  var i    = encLearn;
+  var cell = document.getElementById('enc' + i);
+  var cc   = document.getElementById('encCC' + i);
+
+  /* Verwijder visuele leer-indicators */
+  if (cell) cell.classList.remove('learning');
+  if (cc)   cc.classList.remove('learn-active');
+
+  encLearn = null; /* Geen encoder meer in learn-modus */
+
+  if (!silent) {
+    /* Reset de status-tekst */
+    var statusEl = document.getElementById('encLearnStatus');
+    statusEl.textContent = '— klik CC-badge om te leren —';
+    statusEl.classList.remove('active');
+  }
+}
+
+/* Verwerk een geleerd CC-nummer voor de actieve encoder.
+   Wordt aangeroepen vanuit onMidi() als learn-modus actief is.
+   newCC = het CC-nummer dat de gebruiker net gedraaid heeft */
+function finishLearn(newCC) {
+  var i    = encLearn; /* De encoder die aan het leren is */
+  var oldCC = ENC_DEF[i].cc; /* Het oude CC-nummer van deze encoder */
+
+  /* Verwijder de oude koppeling uit de map */
+  delete encMap[oldCC];
+
+  /* Schrijf de nieuwe koppeling: newCC → encoder i */
+  ENC_DEF[i].cc = newCC;
+  encMap[newCC]  = i;
+
+  /* Update de CC-badge in de UI */
+  var ccEl = document.getElementById('encCC' + i);
+  if (ccEl) ccEl.textContent = 'CC' + newCC;
+
+  console.log('[VersaKey] Encoder R' + (i+1) + ' geleerd: nu CC' + newCC);
+
+  /* Stop learn-modus */
+  stopLearn();
+
+  /* Bevestiging in status-tekst */
+  var statusEl = document.getElementById('encLearnStatus');
+  statusEl.textContent = '✓ R' + (i+1) + ' = CC' + newCC + ' opgeslagen';
+  statusEl.classList.add('active');
+  /* Status-bevestiging na 2 seconden verbergen */
+  setTimeout(function() {
+    statusEl.textContent = '— klik CC-badge om te leren —';
+    statusEl.classList.remove('active');
+  }, 2000);
+}
+
+/* Verwijder alle geleerde koppelingen en herstel de standaard CC-nummers */
+function resetLearn() {
+  stopLearn(); /* Stop eventuele actieve learn-sessie */
+
+  /* Herstel ENC_DEF naar de standaard CC-nummers (uit het handboek) */
+  var defaults = [74, 71, 21, 18, 73, 72, 93, 7];
+  defaults.forEach(function(cc, i) {
+    ENC_DEF[i].cc = cc;
+    var ccEl = document.getElementById('encCC' + i);
+    if (ccEl) ccEl.textContent = 'CC' + cc;
+  });
+
+  /* Herbouw de CC-map */
+  initEncMap();
+
+  /* Reset alle waarden naar 64 (midden) */
+  encVals = [64, 64, 64, 64, 64, 64, 64, 64];
+  for (var i = 0; i < 8; i++) updEncoder(i, 64);
+
+  /* Status-tekst */
+  var statusEl = document.getElementById('encLearnStatus');
+  statusEl.textContent = '↺ Standaard CC-nummers hersteld';
+  statusEl.classList.add('active');
+  setTimeout(function() {
+    statusEl.textContent = '— klik CC-badge om te leren —';
+    statusEl.classList.remove('active');
+  }, 2000);
+
+  console.log('[VersaKey] Encoder CC-koppelingen gereset naar standaard');
 }
 
 /* ── DRUM PADS ───────────────────────────────────────────────────
@@ -1444,7 +1850,37 @@ function onMidi(ev) {
     document.getElementById('noteTxt').textContent = '— speel een toets —';
 
   } else if (cmd === 0xB0) {
-    /* CONTROL CHANGE: een knop/slider/pedaal is bewogen */
+    /* CONTROL CHANGE: een knop/slider/pedaal is bewogen
+       d1 = CC-nummer, d2 = nieuwe waarde (0-127) */
+
+    /* ── MIDI LEARN CHECK (v2.1) ─────────────────────────────────
+       Als er een encoder in learn-modus staat, koppel dit CC-nummer
+       aan die encoder en stop de learn-sessie */
+    if (encLearn !== null && d2 > 0) {
+      /* d2 > 0: negeer "nul"-berichten die soms als eerste binnenkomen */
+      finishLearn(d1); /* Koppel het ontvangen CC-nummer aan de encoder */
+      flash();
+      return; /* Verwerk dit bericht niet als normaal CC */
+    }
+
+    /* ── ENCODER ROUTING (v2.1) ──────────────────────────────────
+       Kijk of dit CC-nummer hoort bij een van de 8 encoders.
+       encMap[d1] geeft de encoder-index terug, of undefined als niet bekend */
+    if (encMap[d1] !== undefined) {
+      updEncoder(encMap[d1], d2); /* Update de balk en waarde van de juiste encoder */
+
+      /* Speciale behandeling als het de volume-encoder (R8 = CC7) is */
+      if (d1 === 7) {
+        vol = d2 / 127;                /* Sla het nieuwe volume op */
+        if (mG) mG.gain.value = vol;   /* Pas het audio-volume direct aan */
+        var vPct = Math.round(d2 / 127 * 100);
+        document.getElementById('volV').textContent = vPct; /* Update de topbar ook */
+      }
+      flash();
+      return; /* Encoder verwerkt, ga niet verder */
+    }
+
+    /* ── VASTE CC-NUMMERS die niet via encoder-map lopen ─────────*/
     if (d1 === 64) {
       /* CC64 = Sustain pedaal: >= 64 is aan, < 64 is uit */
       sus = d2 >= 64;
@@ -1457,7 +1893,7 @@ function onMidi(ev) {
       /* CC1 = Modulatiewiel: update de Mod-strip visueel */
       document.getElementById('modF').style.height = (d2 / 127 * 100) + '%';
     } else if (d1 === 7) {
-      /* CC7 = Volume: update het volume */
+      /* CC7 = Volume (fallback als niet in encMap): update het volume */
       var v = Math.round(d2 / 127 * 100);
       vol = v / 100;
       if (mG) mG.gain.value = vol;
@@ -1497,6 +1933,8 @@ if ('serviceWorker' in navigator) {
 
 /* ── INITIALISATIE ───────────────────────────────────────────────
    Start de app op als de pagina geladen is */
+initEncMap();   /* Bouw de standaard CC→encoder koppelingsmap */
+buildEncoders(); /* Maak de 8 encoder-blokken zichtbaar */
 buildPads();    /* Maak de drum-pads */
 setModel(49);  /* Laad het standaard VK-49 model */
 initMidi();    /* Start de USB-MIDI verbinding */

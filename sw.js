@@ -1,15 +1,19 @@
 /* ================================================================
    SERVICE WORKER — Devine VersaKey Companion App
-   VERSIE  : 2.1.0
+   VERSIE  : 2.2.0
    DATUM   : 2026-04-05
    DOEL    : Zorgt dat de app ook werkt zonder internet (offline PWA)
              en dat bestanden snel laden vanuit de cache
 
+   CHANGELOG v2.2.0:
+   - Cache-naam bijgewerkt naar 'versakey-v4' (vervangt v3 automatisch)
+   - Reden: index.html gewijzigd (zoom-functie piano + strips toegevoegd)
+   - Bij elke nieuwe versie van index.html MOET de cache-naam omhoog,
+     anders laadt de browser de oude gecachte versie i.p.v. de nieuwe
+
    CHANGELOG v2.1.0:
    - Cache-naam bijgewerkt naar 'versakey-v3' (vervangt v2 automatisch)
    - Reden: index.html is gewijzigd (rotary encoder sectie toegevoegd)
-   - Bij elke nieuwe versie van index.html MOET de cache-naam omhoog
-     anders laadt de browser de oude gecachte versie i.p.v. de nieuwe
 
    CHANGELOG v2.0.0:
    - Cache-naam bijgewerkt naar 'versakey-v2' (vervangt v1 automatisch)
@@ -21,9 +25,10 @@
 /* ── CACHE NAAM ──────────────────────────────────────────────────
    BELANGRIJK: verhoog dit nummer bij ELKE update van de app-bestanden.
    versakey-v1 = app v1.x
-   versakey-v2 = app v2.0
-   versakey-v3 = app v2.1 (rotary encoders toegevoegd) */
-const CACHE = 'versakey-v3';
+   versakey-v2 = app v2.0  (J6 verwijderd, USB-MIDI focus)
+   versakey-v3 = app v2.1  (rotary encoders + MIDI Learn)
+   versakey-v4 = app v2.2  (zoom-knop piano + strips) */
+const CACHE = 'versakey-v4';
 
 /* ── BESTANDEN DIE WE OPSLAAN IN DE CACHE ────────────────────────
    Dit zijn alle bestanden die de app nodig heeft om te werken.
@@ -52,7 +57,7 @@ self.addEventListener('install', function(e) {
     /* Open (of maak aan) een cache met de naam 'versakey-v2' */
     caches.open(CACHE).then(function(cache) {
 
-      console.log('[SW v2.1] Bestanden opslaan in cache:', FILES);
+      console.log('[SW v2.2] Bestanden opslaan in cache:', FILES);
 
       /* Download alle bestanden en sla ze op in de cache
          Als één bestand mislukt, mislukt de hele installatie */
@@ -77,7 +82,7 @@ self.addEventListener('activate', function(e) {
     /* Haal de namen op van alle bestaande caches in de browser */
     caches.keys().then(function(keys) {
 
-      console.log('[SW v2.1] Gevonden caches:', keys);
+      console.log('[SW v2.2] Gevonden caches:', keys);
 
       /* Verwijder alle caches waarvan de naam NIET gelijk is aan onze huidige naam.
          Dit verwijdert automatisch 'versakey-v1' als we nu op 'versakey-v2' zitten. */
@@ -85,7 +90,7 @@ self.addEventListener('activate', function(e) {
         keys
           .filter(function(k) { return k !== CACHE; }) /* Bewaar alleen de huidige cache */
           .map(function(k) {
-            console.log('[SW v2.1] Oude cache verwijderd:', k);
+            console.log('[SW v2.2] Oude cache verwijderd:', k);
             return caches.delete(k); /* Verwijder de oude cache */
           })
       );
@@ -116,12 +121,12 @@ self.addEventListener('fetch', function(e) {
 
       /* Gevonden in cache? Stuur het direct terug (snel!) */
       if (cached) {
-        console.log('[SW v2.1] Uit cache:', e.request.url);
+        console.log('[SW v2.2] Uit cache:', e.request.url);
         return cached;
       }
 
       /* Niet in cache: haal het op van het internet */
-      console.log('[SW v2.1] Van internet:', e.request.url);
+      console.log('[SW v2.2] Van internet:', e.request.url);
       return fetch(e.request).then(function(response) {
 
         /* Controleer of het antwoord geldig is:
@@ -147,7 +152,7 @@ self.addEventListener('fetch', function(e) {
       }).catch(function() {
         /* Internet werkt niet EN bestand zit niet in cache:
            Toon de hoofdpagina als noodoplossing (offline fallback) */
-        console.warn('[SW v2.1] Offline fallback: index.html getoond');
+        console.warn('[SW v2.2] Offline fallback: index.html getoond');
         return caches.match('./index.html');
       });
     })

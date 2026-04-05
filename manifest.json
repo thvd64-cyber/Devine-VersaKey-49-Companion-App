@@ -1,28 +1,74 @@
 {
-  "name": "Devine VersaKey — MIDI Keyboard",
-  "short_name": "VersaKey",
-  "description": "Devine VersaKey Series MIDI Keyboard App voor VK-25, VK-49, VK-61 en VK-88",
-  "start_url": "./index.html",
-  "display": "standalone",
+  "_comment_versie":        "VersaKey Companion App — manifest versie 2.0.0 — 2026-04-05",
+  "_comment_platform":      "Primair doel: Windows + Android via Chrome/Edge met USB-MIDI kabel",
+  "_comment_wijzigingen":   "v2.0: J6 sectie verwijderd, dubbele code opgeruimd, USB-MIDI focus",
+
+  "name":        "Devine VersaKey — MIDI Controller",
+  "_c_name":     "Volledige app-naam zoals getoond bij installatie op Windows en Android",
+
+  "short_name":  "VersaKey",
+  "_c_short":    "Korte naam voor op het beginscherm / bureaublad (max ~12 tekens)",
+
+  "description": "Devine VersaKey Series MIDI Controller App voor VK-25, VK-49, VK-61 en VK-88 — USB-MIDI via Chrome/Edge op Windows en Android",
+  "_c_desc":     "Wordt getoond in de app-store en bij installatie",
+
+  "version":     "2.0.0",
+  "_c_version":  "Versienummer van de app — verhoog bij elke update (major.minor.patch)",
+
+  "start_url":   "./index.html",
+  "_c_start":    "Welke pagina opent als je de geïnstalleerde app start",
+
+  "display":     "standalone",
+  "_c_display":  "standalone = ziet eruit als een echte app (geen adresbalk zichtbaar)",
+
   "orientation": "landscape",
+  "_c_orient":   "landscape = liggend scherm — beste voor een piano-toetsenbord",
+
   "background_color": "#f0ebe0",
+  "_c_bg":       "Achtergrondkleur tijdens het laden van de app (warm ivoor, zelfde als --bg in CSS)",
+
   "theme_color": "#8b6f3a",
+  "_c_theme":    "Kleur van de statusbalk / titelbalk op Android (warm bruin, zelfde als --accent in CSS)",
+
   "lang": "nl",
+  "_c_lang":     "Taal van de app: nl = Nederlands",
+
+  "scope": "./",
+  "_c_scope":    "Welke URLs vallen onder de PWA — ./ = alles in dezelfde map",
+
   "icons": [
     {
-      "src": "icon-192.svg",
-      "sizes": "192x192",
-      "type": "image/svg+xml",
+      "src":     "icon-192.svg",
+      "_c":      "Klein icoon: gebruikt op beginscherm telefoon en in app-lijst (192×192 pixels)",
+      "sizes":   "192x192",
+      "type":    "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "icon-512.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
+      "src":     "icon-512.svg",
+      "_c":      "Groot icoon: gebruikt bij installatie en in de Windows/Android app-store (512×512 pixels)",
+      "sizes":   "512x512",
+      "type":    "image/svg+xml",
       "purpose": "any maskable"
     }
   ],
+
   "categories": ["music", "utilities"],
+  "_c_cat":      "App-categorieën voor zoeken in PWA/app-stores",
+
   "screenshots": [],
-  "prefer_related_applications": false
+  "_c_screens":  "Hier kun je later schermafbeeldingen toevoegen voor de app-store",
+
+  "prefer_related_applications": false,
+  "_c_pref":     "false = gebruik altijd deze PWA, niet een native app uit een app-store",
+
+  "shortcuts": [
+    {
+      "name":        "VK-49 openen",
+      "_c":          "Snelkoppeling: rechtermuisklik op app-icoon → directe keuze",
+      "short_name":  "VK-49",
+      "description": "Open de app met VK-49 model geselecteerd",
+      "url":         "./index.html"
+    }
+  ]
 }

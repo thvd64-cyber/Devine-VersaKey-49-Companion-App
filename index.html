@@ -1,38 +1,40 @@
-<!DOCTYPE html>
+     <!DOCTYPE html>
 <!-- ============================================================
      Devine VersaKey — MIDI Controller App
-     VERSIE : 2.2.0
+     VERSIE : 2.3.0
      DATUM  : 2026-04-05
      DOEL   : PWA voor Windows, Android, Chrome/Edge via USB-MIDI
 
+     CHANGELOG v2.3.0 (t.o.v. v2.2.0):
+     ── BUGFIX ENCODERS ──────────────────────────────────────────
+     - NIEUW: CC Debug Monitor balk (tussen encoders en pads)
+       * Toont LIVE welk CC-nummer binnenkomt als je een knop draait
+       * Toont de waarde (0-127) en encoder-naam als die gekoppeld is
+       * Kan verborgen worden met "Verberg" knop
+       * Essentieel om te zien welke CC-nummers jouw VersaKey stuurt
+     - NIEUW: Console.log uitgebreid — elk CC-bericht wordt gelogd
+       * Open Chrome → F12 → Console om live mee te kijken
+     - FIX: encMap lookup verbeterd met extra null-check
+     - FIX: Getal (0-127) nu altijd zichtbaar in elk encoder-blokje
+       * Groter lettertype (10px i.p.v. 9px) en duidelijkere kleur
+     - NIEUW: Handleiding-tooltip voor "Reset Learn" en CC-badge
+       * Klik op ❓ knop naast Encoders label = uitleg popup
+       * Popup legt uit: wat is MIDI Learn, wat doet Reset Learn
+     - FIX: Versie-badge bijgewerkt naar v2.3
+
      CHANGELOG v2.2.0 (t.o.v. v2.1.0):
-     - NIEUW: Zoom-knop voor toetsen en strips (−  1×  2×  knop in statusbalk)
-       * 3 vaste zoomniveaus: 1× (normaal), 1.5× (middelgroot), 2× (groot)
-       * Zoomt alleen de piano-toetsen én de 2 strips — rest van de app ongewijzigd
-       * Piano herbouwt automatisch bij zoom-wijziging
-       * Strips schalen mee via CSS custom property --zoom
-       * Zoom-niveau opgeslagen in localStorage zodat het onthouden wordt
-     - Versie 2.2.0
-     - NIEUW: Rotary Encoder sectie toegevoegd (R1-R8)
-       * Voorstel A: 8 live CC-meter balken die bewegen bij draaien
-       * Voorstel B: MIDI Learn modus per knop
-       * Leer-knop per encoder: klik → draai hardware knop → koppeling opgeslagen
-       * Kleurcodering per groep: oranje=filter, groen=LFO, paars=envelope, blauw=FX, grijs=vol
-       * Waarde-getal (0-127) live bijgewerkt naast elke balk
-       * CC-nummer badge zichtbaar per encoder
-       * Learn-modus indicator: balk pulseert tijdens wachten op hardware input
-     - onMidi() uitgebreid: CC-berichten nu ook naar rotary sectie gerouteerd
-     - ccLearn() en stopLearn() toegevoegd voor MIDI Learn flow
-     - updEncoder() toegevoegd voor live balk-animatie
+     - Zoom-knop voor toetsen en strips toegevoegd
+     - 3 vaste zoomniveaus: 1× / 1.5× / 2×
+     - Zoom-niveau opgeslagen in localStorage
+
+     CHANGELOG v2.1.0 (t.o.v. v2.0.0):
+     - Rotary Encoder sectie toegevoegd (R1-R8)
+     - Voorstel A: 8 live CC-meter balken
+     - Voorstel B: MIDI Learn modus per encoder
 
      CHANGELOG v2.0.0 (t.o.v. v1.x):
-     - AudioKit J6 sectie verwijderd (niet verder ontwikkeld)
-     - Dubbele HTML-code verwijderd (was 2x dezelfde app in 1 bestand)
+     - AudioKit J6 sectie verwijderd
      - USB-MIDI verbinding verbeterd voor Chrome op Windows/Android
-     - Inline uitleg toegevoegd bij elke coderegel
-     - Versie-badge toegevoegd in de topbar
-     - MIDI-apparaat automatisch herkend (VersaKey/Devine)
-     - Foutmelding in het Nederlands bij geen MIDI-toegang
      ============================================================ -->
 <html lang="nl">
 <head>
@@ -40,24 +42,24 @@
 <!-- Vertel de browser welke tekens we gebruiken (altijd UTF-8) -->
 <meta charset="UTF-8">
 
-<!-- Zorg dat de app goed past op telefoons en tablets, niet zoombaar -->
+<!-- Zorg dat de app goed past op telefoons en tablets -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-<!-- Zorgt dat de app er uit ziet als een echte app op iPhone/iPad -->
+<!-- App-icoon instellingen voor iOS -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="VersaKey">
 
-<!-- Kleur van de adresbalk op Android Chrome -->
+<!-- Kleur adresbalk op Android Chrome -->
 <meta name="theme-color" content="#f0ebe0">
 
-<!-- Beschrijving van de app (voor zoekmachines en PWA stores) -->
+<!-- Beschrijving voor zoekmachines en PWA stores -->
 <meta name="description" content="Devine VersaKey Series MIDI Keyboard App — VK-25, VK-49, VK-61, VK-88 | USB-MIDI voor Windows &amp; Android">
 
-<!-- Paginatitel zoals te zien in de browsertab -->
-<title>Devine VersaKey — MIDI Controller</title>
+<!-- Paginatitel in de browsertab -->
+<title>Devine VersaKey — MIDI Controller v2.3</title>
 
-<!-- PWA manifest: maakt de app installeerbaar als desktop/telefoon-app -->
+<!-- PWA manifest: maakt de app installeerbaar -->
 <link rel="manifest" href="manifest.json">
 
 <!-- App-icoon voor Apple apparaten -->
@@ -69,8 +71,7 @@
 <style>
 /* ── ZOOM INSTELLING ─────────────────────────────────────────────
    --zoom wordt via JavaScript gezet op 1, 1.5 of 2.
-   De piano en strips gebruiken deze waarde om te schalen.
-   De rest van de app (topbar, pads, encoders) blijft ongewijzigd. */
+   Alleen de piano en strips gebruiken deze waarde om te schalen. */
 :root {
   --zoom: 1;                /* Standaard zoom: normale grootte */
 
@@ -91,40 +92,40 @@
   --bka:      #854F0B;  /* Zwarte toets ingedrukt */
   --ok:       #2d7a3a;  /* Groen = alles goed (MIDI verbonden) */
   --err:      #a33030;  /* Rood = fout (geen MIDI) */
+  --debug:    #1a3a5c;  /* Donkerblauw voor debug monitor balk */
 }
 
-/* Alle elementen: geen ongewenste marges, geen tekstselectie (voor aanraakschermen) */
+/* Alle elementen: geen ongewenste marges, geen tekstselectie */
 * {
-  box-sizing: border-box;           /* Afmetingen inclusief rand en opvulling */
-  margin: 0;                        /* Geen buitenruimte */
-  padding: 0;                       /* Geen binnenruimte */
-  -webkit-tap-highlight-color: transparent; /* Geen blauwe flits bij aanraken op mobiel */
-  touch-action: none;               /* Standaard: blokkeer scrollgebaren (voor piano) */
-  user-select: none;                /* Geen tekst selecteren met muis */
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: none;
+  user-select: none;
 }
 
-/* Hoofd-lay-out: alles van boven naar beneden gestapeld, vult het scherm */
+/* Hoofd-lay-out: alles van boven naar beneden gestapeld */
 body {
   background: var(--bg);
   color: var(--text);
   font-family: 'Outfit', sans-serif;
-  height: 100vh;                    /* Vul het volledige venster */
+  height: 100vh;
   display: flex;
-  flex-direction: column;           /* Stapel secties verticaal */
-  overflow: hidden;                 /* Geen scrollbalk op de pagina zelf */
+  flex-direction: column;
+  overflow: hidden;
 }
 
-/* ── TOPBAR ─────────────────────────────────────────────────────
-   De bovenste balk met logo, modelknoppen, geluid, octaaf, etc. */
+/* ── TOPBAR ─────────────────────────────────────────────────────*/
 .topbar {
   display: flex;
   align-items: center;
-  gap: 8px;                         /* Ruimte tussen elementen */
+  gap: 8px;
   padding: 10px 16px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  flex-shrink: 0;                   /* Balk krimpt niet als scherm klein is */
-  flex-wrap: wrap;                  /* Elementen gaan naar volgende rij als te smal */
+  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 /* Logo-blok: ronde stip + tekst */
@@ -140,7 +141,7 @@ body {
   width: 28px;
   height: 28px;
   background: var(--accent);
-  border-radius: 50%;               /* Perfecte cirkel */
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -209,7 +210,7 @@ body {
   text-align: center;
 }
 
-/* Knoppen (VK-25, VK-49, +, -, Sustain, etc.) */
+/* Knoppen */
 .btn {
   padding: 4px 9px;
   border-radius: 6px;
@@ -223,9 +224,10 @@ body {
   font-family: 'Outfit', sans-serif;
 }
 .btn:hover  { background: var(--surface2); border-color: var(--accent); }
-.btn:active { transform: scale(.93); }           /* Klein indruk-effect */
-.btn.on     { background: var(--accent); color: #fff; border-color: var(--accent); } /* Actief = oranje */
-.btn.mon    { background: rgba(139,111,58,.15); color: var(--accent); border-color: var(--accent); font-weight: 600; } /* Model-actief */
+.btn:active { transform: scale(.93); }
+.btn.on     { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn.mon    { background: rgba(139,111,58,.15); color: var(--accent); border-color: var(--accent); font-weight: 600; }
+.btn:disabled { opacity: .35; cursor: not-allowed; }
 
 /* Dropdown (geluidskeuze) */
 .sel {
@@ -239,7 +241,7 @@ body {
   outline: none;
   cursor: pointer;
   max-width: 148px;
-  touch-action: auto;               /* Dropdown mag wel scrollen */
+  touch-action: auto;
 }
 .sel:focus { border-color: var(--accent); }
 
@@ -263,7 +265,7 @@ body {
   border: 2px solid var(--bg);
 }
 
-/* MIDI-verbindingsbadge (knopje rechts in topbar) */
+/* MIDI-verbindingsbadge */
 .midi-badge {
   display: flex;
   align-items: center;
@@ -281,25 +283,97 @@ body {
 }
 .midi-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--dim); transition: background .3s; flex-shrink: 0; }
 .midi-badge.ok   { color: var(--ok); }
-.midi-badge.ok .dot  { background: var(--ok); box-shadow: 0 0 4px var(--ok); }  /* Groen gloeien = verbonden */
+.midi-badge.ok .dot  { background: var(--ok); box-shadow: 0 0 4px var(--ok); }
 .midi-badge.err  { color: var(--err); }
 .midi-badge.err .dot { background: var(--err); }
 
-/* ── USB-MIDI HELPBALK ───────────────────────────────────────────
-   Verschijnt alleen als er geen MIDI-apparaat gevonden wordt */
+/* ── USB-MIDI HELPBALK ───────────────────────────────────────────*/
 .usb-hint {
-  display: none;                    /* Standaard verborgen */
+  display: none;
   align-items: center;
   gap: 10px;
   padding: 6px 16px;
-  background: rgba(163,48,48,.07);  /* Licht rood achtergrond */
+  background: rgba(163,48,48,.07);
   border-bottom: 1px solid rgba(163,48,48,.2);
   font-size: 11px;
   color: var(--err);
   font-family: 'Space Mono', monospace;
 }
-.usb-hint.show { display: flex; }   /* Zichtbaar als er geen MIDI is */
+.usb-hint.show { display: flex; }
 .usb-hint a    { color: var(--accent); text-decoration: underline; cursor: pointer; }
+
+/* ── CC DEBUG MONITOR (v2.3) ─────────────────────────────────────
+   Toont live welk CC-nummer binnenkomt als je een knop draait.
+   Onmisbaar om te controleren welke CC-nummers de VersaKey stuurt. */
+.cc-debug {
+  display: flex;                    /* Standaard zichtbaar */
+  align-items: center;
+  gap: 10px;
+  padding: 5px 14px;
+  background: rgba(26,58,92,.07);   /* Licht blauw achtergrond */
+  border-bottom: 1px solid rgba(26,58,92,.15);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.cc-debug.hidden { display: none; } /* Verborgen als gebruiker op "Verberg" klikt */
+
+/* Label "CC MONITOR" links */
+.cc-debug-lbl {
+  font-size: 9px;
+  font-family: 'Space Mono', monospace;
+  color: rgba(26,58,92,.7);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  flex-shrink: 0;
+}
+
+/* De 8 mini-blokjes die live het laatste CC-nummer per slot tonen */
+.cc-slots {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+/* Eén mini-blokje: R1, CC74, waarde */
+.cc-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2px 5px;
+  background: rgba(26,58,92,.06);
+  border: 1px solid rgba(26,58,92,.12);
+  border-radius: 4px;
+  min-width: 46px;
+  transition: background .1s;
+}
+.cc-slot.active { background: rgba(26,58,92,.18); border-color: rgba(26,58,92,.4); } /* Oplichten bij activiteit */
+
+/* Label "R1" boven in het blokje */
+.cc-slot-lbl { font-size: 8px; color: rgba(26,58,92,.6); font-family: 'Space Mono', monospace; }
+
+/* CC-nummer in het midden */
+.cc-slot-cc  { font-size: 9px; color: var(--debug); font-family: 'Space Mono', monospace; font-weight: 700; }
+
+/* Waarde onderaan */
+.cc-slot-val { font-size: 8px; color: rgba(26,58,92,.7); font-family: 'Space Mono', monospace; }
+
+/* Grote live-weergave rechts: "LAATSTE: CC74 = 87" */
+.cc-live {
+  font-size: 11px;
+  font-family: 'Space Mono', monospace;
+  color: var(--debug);
+  font-weight: 700;
+  flex-shrink: 0;
+  min-width: 180px;
+}
+
+/* Knop om de debug-balk te verbergen */
+.cc-debug-hide {
+  font-size: 9px;
+  padding: 2px 7px;
+  flex-shrink: 0;
+}
 
 /* ── ROTARY ENCODER SECTIE ──────────────────────────────────────
    De sectie met 8 live CC-meter balken (Voorstel A)
@@ -307,9 +381,9 @@ body {
 .enc-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 16px;
-  background: var(--surface);       /* Iets lichter dan de pads-balk */
+  gap: 8px;
+  padding: 7px 14px;
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   flex-wrap: wrap;
@@ -318,17 +392,17 @@ body {
 /* Raster van 8 encoder-blokken naast elkaar */
 .enc-grid {
   display: grid;
-  grid-template-columns: repeat(8, 1fr); /* 8 gelijke kolommen */
+  grid-template-columns: repeat(8, 1fr);
   gap: 5px;
   flex: 1;
   min-width: 0;
 }
 
-/* Eén encoder-blok: naam + CC badge + balk + waarde + learn-knop */
+/* Eén encoder-blok: naam + CC badge + balk + waarde */
 .enc-cell {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
   padding: 5px 6px;
   background: var(--bg);
   border: 1px solid var(--border);
@@ -338,23 +412,31 @@ body {
   min-width: 0;
 }
 
-/* Encoder-blok actief in learn-modus: gekleurde rand pulseert */
+/* Encoder-blok actief in learn-modus */
 .enc-cell.learning {
   border-color: var(--accent);
-  animation: learnPulse 0.7s ease-in-out infinite alternate; /* Pulserend effect */
+  animation: learnPulse 0.7s ease-in-out infinite alternate;
 }
 
-/* Pulseer-animatie: de rand gloeit op en daalt weer */
+/* Pulseer-animatie */
 @keyframes learnPulse {
   from { box-shadow: 0 0 0 0 rgba(139,111,58,.0); }
   to   { box-shadow: 0 0 0 3px rgba(139,111,58,.35); }
 }
 
-/* Bovenste rij van een encoder-blok: naam links, CC-badge rechts */
+/* Bovenste rij: naam links, CC-badge rechts */
 .enc-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* R1, R2 ... R8 label boven elke balk */
+.enc-rnum {
+  font-size: 8px;
+  font-family: 'Space Mono', monospace;
+  color: var(--dim);
+  font-weight: 700;
 }
 
 /* Naam van de parameter (bijv. "Cutoff") */
@@ -365,8 +447,8 @@ body {
   font-family: 'Space Mono', monospace;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis; /* Lange namen krijgen "..." */
-  max-width: 58px;
+  text-overflow: ellipsis;
+  max-width: 52px;
 }
 
 /* CC-nummer badge (bijv. "CC74") — klik om te leren */
@@ -382,65 +464,128 @@ body {
   transition: all .12s;
   flex-shrink: 0;
 }
-.enc-cc:hover         { background: var(--accent); color: #fff; } /* Hover = oranje */
-.enc-cc.learn-active  { background: var(--accent); color: #fff; } /* Wacht op hardware-input */
+.enc-cc:hover         { background: var(--accent); color: #fff; }
+.enc-cc.learn-active  { background: var(--accent); color: #fff; }
 
-/* De meter-balk achtergrond (grijs, volledige breedte) */
+/* De meter-balk achtergrond */
 .enc-track {
   width: 100%;
-  height: 6px;
+  height: 7px;
   background: var(--surface3);
-  border-radius: 3px;
-  overflow: hidden;                 /* Zorg dat de vulling niet buiten de balk uitsteekt */
+  border-radius: 4px;
+  overflow: hidden;
   position: relative;
 }
 
-/* De gekleurde vulling van de balk (beweegt van 0% tot 100% breedte) */
+/* De gekleurde vulling van de balk */
 .enc-fill {
   height: 100%;
-  border-radius: 3px;
-  width: 50%;                       /* Standaard op 50% (MIDI waarde 64) */
-  transition: width .04s linear;    /* Vloeiende overgang bij draaien */
+  border-radius: 4px;
+  width: 50%;
+  transition: width .04s linear;
 }
 
-/* Onderste rij: waarde-getal rechts */
-.enc-foot {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-/* De numerieke waarde (0-127) */
+/* Waarde-getal — v2.3: groter en duidelijker zichtbaar */
 .enc-val {
-  font-size: 9px;
-  color: var(--muted);
+  font-size: 10px;            /* v2.3: was 9px, nu 10px voor leesbaarheid */
+  color: var(--text);         /* v2.3: was muted (grijs), nu text (donkerbruin) */
   font-family: 'Space Mono', monospace;
+  font-weight: 700;            /* v2.3: vet gedrukt zodat het opvalt */
+  text-align: right;
+  min-height: 13px;           /* Vaste hoogte zodat de balk niet springt */
 }
 
-/* Kleurcodering per encoder-groep (zelfde als in het diagram):
-   oranje = filter (R1,R2), groen = LFO (R3,R4),
-   paars  = envelope (R5,R6), blauw = FX (R7), grijs = volume (R8) */
-.enc-fill.c-amber  { background: #b8935a; }
+/* Kleurcodering per encoder-groep */
+.enc-fill.c-amber  { background: #d4813a; } /* v2.3: iets feller oranje */
 .enc-fill.c-teal   { background: #1D9E75; }
 .enc-fill.c-purple { background: #7F77DD; }
 .enc-fill.c-blue   { background: #378ADD; }
 .enc-fill.c-gray   { background: #888780; }
 
-/* Learn-status tekst links naast het raster */
+/* Learn-status tekst */
 .enc-learn-status {
   font-size: 9px;
   font-family: 'Space Mono', monospace;
   color: var(--muted);
   white-space: nowrap;
   flex-shrink: 0;
-  writing-mode: horizontal-tb;
 }
 .enc-learn-status.active { color: var(--accent); font-weight: 700; }
+
+/* ── HELP POPUP (v2.3) ───────────────────────────────────────────
+   Verschijnt als je op de ❓ knop klikt naast "Encoders" */
+.help-overlay {
+  display: none;              /* Standaard verborgen */
+  position: fixed;            /* Zweeft boven alles */
+  inset: 0;                   /* Vult het hele scherm */
+  background: rgba(0,0,0,.4); /* Donkere transparante laag erachter */
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+.help-overlay.show { display: flex; } /* Zichtbaar na klikken op ❓ */
+
+/* Het witte vlak met de uitleg */
+.help-box {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px 26px;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0,0,0,.18);
+}
+
+/* Titel van de popup */
+.help-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+  font-family: 'Space Mono', monospace;
+  margin-bottom: 14px;
+}
+
+/* Sectie in de popup */
+.help-section {
+  margin-bottom: 14px;
+}
+
+/* Subtitel per sectie */
+.help-sub {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  margin-bottom: 5px;
+  padding: 3px 7px;
+  background: var(--surface);
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* Uitleg-tekst */
+.help-p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-top: 5px;
+}
+
+/* Sluitknop onderaan de popup */
+.help-close {
+  margin-top: 16px;
+  width: 100%;
+  padding: 8px;
+  font-size: 12px;
+}
 
 /* Responsive: op kleine schermen 4 kolommen i.p.v. 8 */
 @media (max-width: 650px) {
   .enc-grid { grid-template-columns: repeat(4, 1fr); }
+  .cc-slots { display: none; }
 }
+
+/* Drum pads balk */
 .pads-bar {
   display: flex;
   align-items: center;
@@ -452,10 +597,10 @@ body {
   flex-wrap: wrap;
 }
 
-/* Raster van 8 pads naast elkaar */
+/* Raster van 8 pads */
 .pads-grid {
   display: grid;
-  grid-template-columns: repeat(8, 1fr); /* 8 gelijke kolommen */
+  grid-template-columns: repeat(8, 1fr);
   gap: 5px;
   flex: 1;
   min-width: 0;
@@ -479,50 +624,23 @@ body {
   touch-action: none;
   box-shadow: 0 1px 3px rgba(0,0,0,.08), inset 0 1px 0 rgba(255,255,255,.5);
 }
+.pad-bg     { position: absolute; inset: 0; opacity: .16; transition: opacity .08s; }
+.pad:hover .pad-bg  { opacity: .28; }
+.pad.hit            { transform: scale(.89); box-shadow: inset 0 2px 5px rgba(0,0,0,.18); }
+.pad.hit .pad-bg    { opacity: .65; }
+.pad-name   { font-size: 9px; font-weight: 600; color: var(--text); position: relative; z-index: 1; text-align: center; font-family: 'Space Mono', monospace; }
+.pad-n      { font-size: 7px; color: var(--muted); position: relative; z-index: 1; }
 
-/* Gekleurde achtergrond van een pad (de kleur van het instrument) */
-.pad-bg {
-  position: absolute;
-  inset: 0;
-  opacity: .16;
-  transition: opacity .08s;
-}
-.pad:hover .pad-bg { opacity: .28; }      /* Iets donkerder bij hoveren */
-.pad.hit           { transform: scale(.89); box-shadow: inset 0 2px 5px rgba(0,0,0,.18); } /* Ingedrukt effect */
-.pad.hit .pad-bg   { opacity: .65; }
-
-/* Naam van het instrument op de pad (bijv. "Kick") */
-.pad-name {
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--text);
-  position: relative;
-  z-index: 1;
-  text-align: center;
-  font-family: 'Space Mono', monospace;
-}
-
-/* Padnummer (1-8 of 9-16) */
-.pad-n {
-  font-size: 7px;
-  color: var(--muted);
-  position: relative;
-  z-index: 1;
-}
-
-/* ── MIDI APPARAAT BALK ─────────────────────────────────────────
-   Verschijnt als er MIDI-apparaten gevonden worden */
+/* MIDI apparaat balk */
 .midi-bar {
   display: none;
   align-items: center;
   gap: 8px;
   padding: 5px 16px;
-  background: rgba(45,122,58,.06);  /* Licht groen achtergrond */
+  background: rgba(45,122,58,.06);
   border-bottom: 1px solid rgba(45,122,58,.15);
 }
-.midi-bar.show { display: flex; }   /* Zichtbaar als er MIDI-apparaten zijn */
-
-/* Dropdown om het MIDI-apparaat te kiezen */
+.midi-bar.show { display: flex; }
 .midi-sel {
   background: var(--bg);
   border: 1px solid rgba(45,122,58,.25);
@@ -541,7 +659,7 @@ body {
 
 /* ── KLAVIERBORD WRAPPER ─────────────────────────────────────────*/
 .kb-wrap {
-  flex: 1;                          /* Vult de resterende ruimte */
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -558,22 +676,19 @@ body {
   justify-content: center;
 }
 
-/* Scrollbare zone voor de piano (horizontaal scrollen als te smal) */
+/* Scrollbare zone voor de piano */
 .kb-scroll {
   overflow-x: auto;
   overflow-y: hidden;
-  -webkit-overflow-scrolling: touch; /* Vloeiend scrollen op iOS */
+  -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: var(--surface3) transparent;
 }
 .kb-scroll::-webkit-scrollbar       { height: 3px; }
 .kb-scroll::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 2px; }
 
-/* Het piano-element zelf (toetsen worden hier ingevoegd via JavaScript) */
-.keyboard {
-  position: relative;
-  display: inline-block;
-}
+/* Het piano-element */
+.keyboard { position: relative; display: inline-block; }
 
 /* Witte piano-toets */
 .wk {
@@ -583,7 +698,7 @@ body {
   border: 1px solid #c8bfb0;
   border-radius: 0 0 4px 4px;
   cursor: pointer;
-  z-index: 1;                       /* Achter zwarte toetsen */
+  z-index: 1;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -592,7 +707,7 @@ body {
   touch-action: none;
 }
 .wk:hover { background: var(--wkh); }
-.wk.on    { background: var(--wka) !important; } /* Ingedrukt = oranje-goud */
+.wk.on    { background: var(--wka) !important; }
 
 /* Zwarte piano-toets */
 .bk {
@@ -602,7 +717,7 @@ body {
   border: 1px solid #000;
   border-radius: 0 0 3px 3px;
   cursor: pointer;
-  z-index: 2;                       /* Vóór witte toetsen */
+  z-index: 2;
   box-shadow: 2px 3px 5px rgba(0,0,0,.4);
   touch-action: none;
 }
@@ -610,24 +725,11 @@ body {
 .bk.on    { background: var(--bka) !important; }
 
 /* "C2", "C3" labels op de witte toetsen */
-.k-lbl {
-  font-size: 8px;
-  color: #888;
-  font-family: 'Space Mono', monospace;
-}
+.k-lbl { font-size: 8px; color: #888; font-family: 'Space Mono', monospace; }
 
-/* ── TOUCH STRIPS (Pitch en Mod) ────────────────────────────────*/
-.strips {
-  display: flex;
-  gap: 6px;
-  margin-right: 10px;
-  flex-shrink: 0;
-  padding-bottom: 20px;
-}
-
-/* Eén strip (de glijbalk) */
+/* ── TOUCH STRIPS ────────────────────────────────────────────────*/
+.strips { display: flex; gap: 6px; margin-right: 10px; flex-shrink: 0; padding-bottom: 20px; }
 .strip {
-  /* Breedte en hoogte schalen met --zoom: 20px × zoom, 165px × zoom */
   width:  calc(20px * var(--zoom));
   height: calc(165px * var(--zoom));
   background: var(--surface2);
@@ -638,30 +740,12 @@ body {
   cursor: ns-resize;
   box-shadow: inset 0 2px 5px rgba(0,0,0,.05);
   touch-action: none;
-  transition: width .2s, height .2s; /* Vloeiende overgang bij zoom-wijziging */
+  transition: width .2s, height .2s;
 }
-
-/* De gekleurde vulling in de strip (hoe ver je hem hebt bewogen) */
-.sf {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  border-radius: 0 0 10px 10px;
-  transition: height .04s;
-}
-.pf { background: #3b82f6; }        /* Blauw = Pitch Bend */
-.mf { background: var(--accent); }  /* Oranje = Modulatie */
-
-/* Label onder de strip */
-.s-lbl {
-  font-size: 8px;
-  color: var(--muted);
-  text-align: center;
-  margin-top: 3px;
-  letter-spacing: .04em;
-  font-family: 'Space Mono', monospace;
-}
+.sf { position: absolute; bottom: 0; left: 0; right: 0; border-radius: 0 0 10px 10px; transition: height .04s; }
+.pf { background: #3b82f6; }
+.mf { background: var(--accent); }
+.s-lbl { font-size: 8px; color: var(--muted); text-align: center; margin-top: 3px; letter-spacing: .04em; font-family: 'Space Mono', monospace; }
 
 /* ── STATUSBALK ONDERAAN ────────────────────────────────────────*/
 .note-bar {
@@ -675,35 +759,28 @@ body {
 }
 .note-txt { font-size: 11px; font-family: 'Space Mono', monospace; color: var(--muted); }
 
-/* Klein LED-lampje dat knippert als er MIDI-data doorkomt */
-.led {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--dim);
-  transition: all .05s;
-}
-.led.f { background: var(--ok); box-shadow: 0 0 6px var(--ok); } /* Groen knippert */
+/* LED-lampje */
+.led { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); transition: all .05s; }
+.led.f { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
 
-/* ── RESPONSIVE: KLEINE SCHERMEN ────────────────────────────────*/
+/* ── RESPONSIVE ─────────────────────────────────────────────────*/
 @media (max-width: 650px) {
-  .pads-grid  { grid-template-columns: repeat(4, 1fr); } /* 4 pads per rij op telefoon */
-  .sel        { max-width: 115px; }
-  .rng        { width: 55px; }
-  .topbar     { padding: 8px 10px; gap: 6px; }
-  .pads-bar   { padding: 7px 10px; }
-  .kb-wrap    { padding: 10px 10px 8px; }
+  .pads-grid { grid-template-columns: repeat(4, 1fr); }
+  .sel       { max-width: 115px; }
+  .rng       { width: 55px; }
+  .topbar    { padding: 8px 10px; gap: 6px; }
+  .pads-bar  { padding: 7px 10px; }
+  .kb-wrap   { padding: 10px 10px 8px; }
 }
 </style>
 </head>
 <body>
 
 <!-- ══════════════════════════════════════════════════════════════
-     TOPBAR: Logo + Model + Geluid + Octaaf + Volume + MIDI badge
+     TOPBAR
      ══════════════════════════════════════════════════════════════ -->
 <div class="topbar">
 
-  <!-- Logo links -->
   <div class="logo">
     <div class="logo-dot"></div>
     <div>
@@ -712,12 +789,9 @@ body {
     </div>
   </div>
 
-  <!-- Versie-badge naast logo -->
-  <span class="version-badge">v2.2</span>
-
+  <span class="version-badge">v2.3</span>
   <div class="sep"></div>
 
-  <!-- Modelknoppen: klik om het aantal toetsen te kiezen -->
   <span class="lbl">Model</span>
   <button class="btn"     id="m25" onclick="setModel(25)">VK-25</button>
   <button class="btn mon" id="m49" onclick="setModel(49)">VK-49</button>
@@ -726,7 +800,6 @@ body {
 
   <div class="sep"></div>
 
-  <!-- Geluidskeuze dropdown -->
   <span class="lbl">Geluid</span>
   <select class="sel" id="instrSel" onchange="setInstr(this.value)">
     <optgroup label="Piano">
@@ -771,7 +844,6 @@ body {
 
   <div class="sep"></div>
 
-  <!-- Octaaf verschuiven: - knop, waarde, + knop -->
   <span class="lbl">Oct</span>
   <button class="btn" onclick="chOct(-1)">−</button>
   <span class="val" id="octV">C2</span>
@@ -779,7 +851,6 @@ body {
 
   <div class="sep"></div>
 
-  <!-- Toonhoogte verschuiven in halve tonen -->
   <span class="lbl">Transp</span>
   <button class="btn" onclick="chTr(-1)">−</button>
   <span class="val" id="trV">0</span>
@@ -787,19 +858,16 @@ body {
 
   <div class="sep"></div>
 
-  <!-- Volume schuifbalk + waarde -->
   <span class="lbl">Vol</span>
   <input type="range" class="rng" min="0" max="100" value="80" step="1" oninput="chVol(this.value)">
   <span class="val" id="volV">80</span>
 
   <div class="sep"></div>
 
-  <!-- Sustain knop: houdt noten vast (zoals sustain-pedaal) -->
   <button class="btn" id="susBtn" onclick="chSus()">Sustain</button>
 
   <div class="sep"></div>
 
-  <!-- MIDI verbindingsbadge: klik om opnieuw te scannen -->
   <div class="midi-badge" id="midiBadge" onclick="scanMidi()" title="Klik om MIDI apparaten te scannen">
     <div class="dot"></div>
     <span id="midiLbl">MIDI scannen…</span>
@@ -807,34 +875,62 @@ body {
 
 </div><!-- /topbar -->
 
-<!-- ══════════════════════════════════════════════════════════════
-     USB-HINT: Hulpbalk als MIDI niet werkt of niet ondersteund is
-     ══════════════════════════════════════════════════════════════ -->
+<!-- USB hint balk -->
 <div class="usb-hint" id="usbHint">
-  <!-- Uitleg wat de gebruiker moet doen als MIDI niet werkt -->
   <span>⚠️ Geen MIDI gevonden —</span>
   <span>sluit je VersaKey aan via <strong>USB-kabel</strong> en gebruik <strong>Chrome</strong> of <strong>Edge</strong> op Windows/Android.</span>
   <span id="usbHintDetail"></span>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════
-     ROTARY ENCODER SECTIE (v2.1) — Voorstel A + B gecombineerd
+     CC DEBUG MONITOR (v2.3) — NIEUW
+     Toont live welk CC-nummer jouw VersaKey stuurt als je een knop draait.
+     Zo kun je precies zien of R1 CC74 stuurt, R2 CC71, enzovoort.
+     Open ook Chrome → F12 → Console voor nog meer detail.
+     ══════════════════════════════════════════════════════════════ -->
+<div class="cc-debug" id="ccDebug">
+
+  <!-- Label links -->
+  <span class="cc-debug-lbl">CC Monitor</span>
+
+  <!-- 8 mini-blokjes, één per encoder-slot -->
+  <div class="cc-slots" id="ccSlots">
+    <!-- Wordt gevuld door buildCCSlots() in JavaScript -->
+  </div>
+
+  <!-- Grote live-weergave van het laatste CC-bericht -->
+  <span class="cc-live" id="ccLive">— draai een knop om te zien welk CC binnenkomt —</span>
+
+  <!-- Knop om de debug-balk te verbergen als je hem niet meer nodig hebt -->
+  <button class="btn cc-debug-hide" onclick="toggleDebug()" id="debugToggleBtn" title="Verberg de CC monitor balk">Verberg</button>
+
+</div><!-- /cc-debug -->
+
+<!-- ══════════════════════════════════════════════════════════════
+     ROTARY ENCODER SECTIE (v2.1 + v2.3 verbeteringen)
      A: 8 live meter-balken die bewegen als je de knop draait
      B: MIDI Learn — klik op CC-badge → draai hardware knop → opgeslagen
      ══════════════════════════════════════════════════════════════ -->
 <div class="enc-bar">
 
-  <!-- Label links van het raster -->
+  <!-- Label + ❓ help knop -->
   <span class="lbl" style="flex-shrink:0;">Encoders</span>
 
-  <!-- Status-tekst die aangeeft of learn-modus actief is -->
+  <!-- v2.3: Help knop — klik voor uitleg over CC-badge en Reset Learn -->
+  <button class="btn" onclick="showHelp()" style="padding:2px 7px;font-size:11px;flex-shrink:0;"
+    title="Klik voor uitleg over MIDI Learn en Reset Learn">❓</button>
+
+  <!-- Status-tekst: aanwijzing of learn-modus actief is -->
   <span class="enc-learn-status" id="encLearnStatus">— klik CC-badge om te leren —</span>
 
-  <!-- Het raster van 8 encoder-blokken (wordt gevuld door buildEncoders() in JS) -->
+  <!-- Raster van 8 encoder-blokken -->
   <div class="enc-grid" id="encGrid"></div>
 
-  <!-- Knop om alle leer-koppelingen te wissen -->
-  <button class="btn" onclick="resetLearn()" style="flex-shrink:0;font-size:10px;" title="Verwijder alle geleerde CC-koppelingen">Reset Learn</button>
+  <!-- Reset Learn knop + tooltip tekst -->
+  <button class="btn" onclick="resetLearn()" style="flex-shrink:0;font-size:10px;"
+    title="Verwijder alle geleerde CC-koppelingen en herstel standaard waarden uit het handboek">
+    ↺ Reset Learn
+  </button>
 
 </div><!-- /enc-bar -->
 
@@ -843,22 +939,18 @@ body {
      ══════════════════════════════════════════════════════════════ -->
 <div class="pads-bar">
   <span class="lbl">Drum Pads</span>
-  <!-- 8 pads worden hier ingevoegd door buildPads() in JavaScript -->
   <div class="pads-grid" id="padsG"></div>
-  <!-- Knop om te wisselen tussen pad-bank 1-8 en 9-16 -->
   <button class="btn" id="bankBtn" onclick="chBank()" style="flex-shrink:0;margin-left:4px;">Bank 1–8</button>
 </div>
 
 <!-- ══════════════════════════════════════════════════════════════
-     MIDI APPARAAT BALK: verschijnt als MIDI-apparaten worden gevonden
+     MIDI APPARAAT BALK
      ══════════════════════════════════════════════════════════════ -->
 <div class="midi-bar" id="midiBar">
   <span class="midi-info">Apparaat:</span>
-  <!-- Dropdown om het juiste MIDI-apparaat te kiezen -->
   <select class="midi-sel" id="midiSel" onchange="pickMidi(this.value)">
     <option value="">— kies MIDI apparaat —</option>
   </select>
-  <!-- Status tekst: "verbonden" of "wacht op noot..." -->
   <span class="midi-info" id="midiInfo"></span>
 </div>
 
@@ -868,84 +960,131 @@ body {
 <div class="kb-wrap">
   <div class="kb-area">
 
-    <!-- Touch strips: Pitch Bend en Modulatie -->
+    <!-- Touch strips -->
     <div class="strips">
-
-      <!-- Pitch Bend strip: sleept omhoog = toon hoger, omlaag = lager -->
       <div>
         <div class="strip" id="pitchS"
           ontouchstart="sS(event,'p')" ontouchmove="sM(event,'p')" ontouchend="sE(event,'p')"
           onmousedown="sS(event,'p')">
-          <div class="sf pf" id="pitchF" style="height:50%"></div> <!-- Start op 50% = geen buiging -->
+          <div class="sf pf" id="pitchF" style="height:50%"></div>
         </div>
         <div class="s-lbl">PITCH</div>
       </div>
-
-      <!-- Modulatie strip: sleept omhoog = meer effect -->
       <div>
         <div class="strip" id="modS"
           ontouchstart="sS(event,'m')" ontouchmove="sM(event,'m')" ontouchend="sE(event,'m')"
           onmousedown="sS(event,'m')">
-          <div class="sf mf" id="modF" style="height:0%"></div> <!-- Start op 0% = geen modulatie -->
+          <div class="sf mf" id="modF" style="height:0%"></div>
         </div>
         <div class="s-lbl">MOD</div>
       </div>
+    </div>
 
-    </div><!-- /strips -->
-
-    <!-- Scrollbare piano: toetsen worden door JavaScript gemaakt -->
+    <!-- Scrollbare piano -->
     <div class="kb-scroll">
       <div class="keyboard" id="kb"></div>
     </div>
 
-  </div><!-- /kb-area -->
-</div><!-- /kb-wrap -->
+  </div>
+</div>
 
 <!-- ══════════════════════════════════════════════════════════════
-     STATUSBALK ONDERAAN: toont welke noot je speelt
+     STATUSBALK ONDERAAN (met zoom knoppen)
      ══════════════════════════════════════════════════════════════ -->
 <div class="note-bar">
-  <!-- Tekst die de huidige noot toont -->
   <span class="note-txt" id="noteTxt">— speel een toets —</span>
-  <!-- LED-lampje dat knippert bij MIDI-activiteit -->
   <div class="led" id="led"></div>
 
-  <!-- ── ZOOM KNOPPEN (v2.2) ────────────────────────────────────
-       Vergroot/verklein alleen de piano-toetsen en de 2 strips.
-       3 niveaus: 1× (normaal) · 1.5× (middelgroot) · 2× (groot) -->
+  <!-- Zoom knoppen (v2.2) -->
   <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
-    <!-- Kleine label -->
     <span style="font-size:9px;color:var(--muted);font-family:'Space Mono',monospace;">ZOOM</span>
-    <!-- Knop: zoom uitzoomen (één niveau terug) -->
     <button class="btn" id="zoomOut" onclick="chZoom(-1)" style="padding:2px 7px;font-size:11px;" title="Kleiner">−</button>
-    <!-- Huidig zoom-niveau als tekst (bijv. "1×") -->
     <span class="val" id="zoomLbl" style="min-width:28px;font-size:11px;">1×</span>
-    <!-- Knop: zoom inzoomen (één niveau groter) -->
     <button class="btn" id="zoomIn"  onclick="chZoom(+1)" style="padding:2px 7px;font-size:11px;" title="Groter">+</button>
   </div>
 
-  <!-- Naam van het verbonden MIDI-apparaat (rechts) -->
   <span class="note-txt" id="devTxt" style="font-size:10px;"></span>
 </div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     HELP POPUP (v2.3) — Uitleg over MIDI Learn en Reset Learn
+     Verschijnt als je op de ❓ knop klikt.
+     ══════════════════════════════════════════════════════════════ -->
+<div class="help-overlay" id="helpOverlay" onclick="hideHelp()">
+  <div class="help-box" onclick="event.stopPropagation()">
+
+    <div class="help-title">❓ Uitleg: Encoders &amp; MIDI Learn</div>
+
+    <!-- Sectie 1: wat zijn de CC-badges -->
+    <div class="help-section">
+      <span class="help-sub">CC-badge (bijv. "CC74")</span>
+      <p class="help-p">
+        Elke knop op je VersaKey stuurt een <strong>CC-nummer</strong> — een getal van 0 tot 127
+        dat zegt <em>welke parameter</em> wordt bediend. CC74 = Filter, CC71 = Resonantie, etc.
+        <br><br>
+        Als je op de CC-badge klikt, gaat de encoder in <strong>MIDI Learn modus</strong>:
+        de rand pulseert en de app wacht. Draai dan de gewenste knop op je VersaKey hardware.
+        De app leert automatisch welk CC-nummer die knop stuurt en koppelt ze aan elkaar.
+      </p>
+    </div>
+
+    <!-- Sectie 2: stap voor stap MIDI Learn -->
+    <div class="help-section">
+      <span class="help-sub">Stap voor stap: MIDI Learn</span>
+      <p class="help-p">
+        1️⃣ &nbsp;Klik op de CC-badge van de encoder die je wil koppelen (bijv. "CC74" bij R1)<br>
+        2️⃣ &nbsp;De rand van het blokje begint te <em>pulsen</em> — de app luistert nu<br>
+        3️⃣ &nbsp;Draai de fysieke knop op je VersaKey (bijv. de eerste draaiknop)<br>
+        4️⃣ &nbsp;Je ziet "✓ R1 = CC74 opgeslagen" verschijnen — klaar!<br>
+        5️⃣ &nbsp;Herhaal dit voor R2, R3 ... R8
+      </p>
+    </div>
+
+    <!-- Sectie 3: Reset Learn -->
+    <div class="help-section">
+      <span class="help-sub">↺ Reset Learn</span>
+      <p class="help-p">
+        Deze knop wist alle koppelingen die je via MIDI Learn hebt gemaakt en zet
+        alle CC-nummers terug naar de <strong>standaard waarden uit het handboek</strong>:
+        R1=CC74, R2=CC71, R3=CC21, R4=CC18, R5=CC73, R6=CC72, R7=CC93, R8=CC7.
+        <br><br>
+        Gebruik dit als je opnieuw wil beginnen of als de knoppen niet meer kloppen.
+      </p>
+    </div>
+
+    <!-- Sectie 4: CC Monitor uitleg -->
+    <div class="help-section">
+      <span class="help-sub">CC Monitor (blauwe balk bovenaan)</span>
+      <p class="help-p">
+        De blauwe balk toont <strong>live welk CC-nummer binnenkomt</strong> als je een knop draait.
+        Dit helpt je te zien of R1 echt CC74 stuurt of een ander nummer.
+        Klik "Verberg" om de balk te sluiten als je hem niet meer nodig hebt.
+        <br><br>
+        Tip: open ook <strong>Chrome → F12 → Console</strong> voor nog meer detail.
+      </p>
+    </div>
+
+    <button class="btn help-close" onclick="hideHelp()">Sluiten ✕</button>
+  </div>
+</div><!-- /help-overlay -->
 
 <!-- ══════════════════════════════════════════════════════════════
      JAVASCRIPT
      ══════════════════════════════════════════════════════════════ -->
 <script>
-/* ── VERSIE INFO ─────────────────────────────────────────────────
-   Sla de versie op zodat we hem kunnen loggen en vergelijken */
-var APP_VERSION = '2.2.0';
-console.log('[VersaKey] app versie', APP_VERSION, '| USB-MIDI modus voor Chrome/Windows/Android');
+/* ── VERSIE INFO ─────────────────────────────────────────────────*/
+var APP_VERSION = '2.3.0';
+console.log('[VersaKey] app versie', APP_VERSION);
+console.log('[VersaKey] TIP: draai een knop op je VersaKey en kijk hier welk CC-nummer binnenkomt!');
 
 /* ── NOOT NAMEN EN PIANO LAYOUT ──────────────────────────────────
-   NN = namen van de 12 noten per octaaf (C t/m B)
-   BP = 1 betekent zwarte toets, 0 = witte toets */
+   NN = namen van de 12 noten per octaaf
+   BP = 1 = zwarte toets, 0 = witte toets */
 var NN = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 var BP = [0,1,0,1,0,0,1,0,1,0,1,0];
 
 /* ── MODEL CONFIGURATIE ──────────────────────────────────────────
-   s = eerste MIDI-nootnummer, n = aantal toetsen
-   VK-25 begint op C3 (48), VK-49 en VK-61 beginnen op C2 (36), VK-88 op A0 (21) */
+   s = eerste MIDI-nootnummer, n = aantal toetsen */
 var MC = {
   25: { s: 48, n: 25 },
   49: { s: 36, n: 49 },
@@ -954,496 +1093,502 @@ var MC = {
 };
 
 /* ── AFMETINGEN PIANO-TOETSEN ────────────────────────────────────
-   WW = breedte witte toets, WH = hoogte witte toets
-   BW = breedte zwarte toets, BH = hoogte zwarte toets
-   Dit zijn de BASIS-afmetingen bij zoom 1×.
-   Bij zoom 1.5× worden alle afmetingen × 1.5, bij 2× × 2. */
+   Dit zijn de BASIS-afmetingen bij zoom 1×. */
 var WW=36, WH=170, BW=22, BH=105;
 
 /* ── ZOOM INSTELLING (v2.2) ──────────────────────────────────────
-   ZOOM_LEVELS = de drie beschikbare zoomniveaus
-   zoomIdx     = welk niveau nu actief is (0=1×, 1=1.5×, 2=2×)
-   Opgeslagen in localStorage zodat de voorkeur onthouden wordt. */
-var ZOOM_LEVELS = [1, 1.5, 2]; /* 1× normaal · 1.5× middelgroot · 2× groot */
+   3 zoomniveaus: 1× / 1.5× / 2× */
+var ZOOM_LEVELS = [1, 1.5, 2];
 var zoomIdx = (function() {
-  /* Lees het opgeslagen zoom-niveau uit localStorage (0, 1 of 2) */
   var saved = parseInt(localStorage.getItem('vk-zoom') || '0');
-  /* Zorg dat het een geldig getal is (0-2), anders gebruik 0 */
   return (saved >= 0 && saved <= 2) ? saved : 0;
 })();
 
-/* ── TOESTANDSVARIABELEN ─────────────────────────────────────────
-   Sla de huidige toestand van alle instellingen op */
-var aC     = null;    /* AudioContext: de motor die geluid maakt */
-var mG     = null;    /* Master gain node: regelt het totaalvolume */
-var aN     = {};      /* Actieve Noten: {midiNr: {gain, oscillators, profiel}} */
+/* ── TOESTANDSVARIABELEN ─────────────────────────────────────────*/
+var aC     = null;    /* AudioContext */
+var mG     = null;    /* Master gain node */
+var aN     = {};      /* Actieve Noten */
 var sus    = false;   /* Sustain aan/uit */
-var susH   = {};      /* Noten die worden vastgehouden door sustain */
-var vol    = .8;      /* Volume 0.0 tot 1.0 */
-var vel    = 90;      /* Aanslagsterkte (MIDI velocity) 0-127 */
-var octOff = 0;       /* Octaafverschuiving: hoeveel octaven omhoog/omlaag */
-var tr     = 0;       /* Transpositie: halve tonen omhoog/omlaag */
-var instr  = 0;       /* Geselecteerd instrument (GM programmanummer) */
-var mdl    = 49;      /* Actief klaviermodel (25, 49, 61 of 88) */
-var pb     = 0;       /* Pitch Bend waarde (-2 tot +2 octaven) */
-var sDr    = {};      /* Strip sleepstatus: {p: boolean, m: boolean} */
-var bank   = 0;       /* Actieve pad-bank: 0 = pads 1-8, 1 = pads 9-16 */
+var susH   = {};      /* Vastgehouden sustain-noten */
+var vol    = .8;      /* Volume 0.0–1.0 */
+var vel    = 90;      /* Standaard velocity */
+var octOff = 0;       /* Octaafverschuiving */
+var tr     = 0;       /* Transpositie halve tonen */
+var instr  = 0;       /* GM programmanummer */
+var mdl    = 49;      /* Actief model */
+var pb     = 0;       /* Pitch Bend waarde */
+var sDr    = {};      /* Strip sleepstatus */
+var bank   = 0;       /* Pad bank 0 of 1 */
 
 /* ── ROTARY ENCODER DEFINITIE (v2.1) ────────────────────────────
-   De 8 fysieke draaiknoppen op de VersaKey met hun standaard CC-nummers.
-   n   = naam die in de app getoond wordt
-   cc  = standaard MIDI CC-nummer (uit het handboek)
-   col = kleurklasse voor de meter-balk (zelfde als in het diagram)
-   Groepen: oranje=filter, groen=LFO, paars=envelope, blauw=FX, grijs=vol */
+   De 8 fysieke draaiknoppen met hun STANDAARD CC-nummers uit het handboek.
+   BELANGRIJK: als jouw VersaKey andere CC-nummers stuurt, gebruik MIDI Learn!
+   n   = naam in de app
+   cc  = standaard CC-nummer (uit het Devine handboek)
+   col = kleurklasse voor de meter-balk */
 var ENC_DEF = [
-  { n: 'Cutoff',  cc: 74, col: 'c-amber'  }, /* R1: filterfrequentie */
-  { n: 'Rez',     cc: 71, col: 'c-amber'  }, /* R2: filter resonantie */
-  { n: 'LFO Rate',cc: 21, col: 'c-teal'   }, /* R3: LFO snelheid */
-  { n: 'Detune',  cc: 18, col: 'c-teal'   }, /* R4: oscillator detune */
-  { n: 'Attack',  cc: 73, col: 'c-purple' }, /* R5: amp attack tijd */
-  { n: 'Release', cc: 72, col: 'c-purple' }, /* R6: amp release tijd */
-  { n: 'Chorus',  cc: 93, col: 'c-blue'   }, /* R7: chorus diepte */
-  { n: 'Volume',  cc:  7, col: 'c-gray'   }  /* R8: master volume */
+  { n: 'Cutoff',   cc: 74, col: 'c-amber'  }, /* R1: filterfrequentie */
+  { n: 'Rez',      cc: 71, col: 'c-amber'  }, /* R2: filter resonantie */
+  { n: 'LFO Rate', cc: 21, col: 'c-teal'   }, /* R3: LFO snelheid */
+  { n: 'Detune',   cc: 18, col: 'c-teal'   }, /* R4: oscillator detune */
+  { n: 'Attack',   cc: 73, col: 'c-purple' }, /* R5: amp attack tijd */
+  { n: 'Release',  cc: 72, col: 'c-purple' }, /* R6: amp release tijd */
+  { n: 'Chorus',   cc: 93, col: 'c-blue'   }, /* R7: chorus diepte */
+  { n: 'Volume',   cc:  7, col: 'c-gray'   }  /* R8: master volume */
 ];
 
-/* ── ENCODER TOESTANDSVARIABELEN (v2.1) ─────────────────────────
-   encVals  = huidige CC-waarden per encoder (0-127), start op 64 (midden)
-   encLearn = index van de encoder die momenteel in learn-modus staat (null = geen)
-   encMap   = {cc-nummer: encoder-index} — welke CC stuurt welke encoder aan?
-              Wordt bijgewerkt door MIDI Learn */
-var encVals  = [64, 64, 64, 64, 64, 64, 64, 64]; /* Alle encoders starten op 64 (midden) */
-var encLearn = null;  /* Geen encoder in learn-modus bij opstart */
-var encMap   = {};    /* Wordt gevuld op basis van ENC_DEF én geleerde koppelingen */
+/* ── ENCODER TOESTANDSVARIABELEN ─────────────────────────────────
+   encVals  = huidige waarden (0-127) per encoder
+   encLearn = index van encoder in learn-modus (null = geen)
+   encMap   = {cc-nummer: encoder-index} voor snelle lookup */
+var encVals  = [64, 64, 64, 64, 64, 64, 64, 64]; /* Start allemaal op 64 (midden) */
+var encLearn = null;   /* Geen learn-modus bij opstart */
+var encMap   = {};     /* Wordt gevuld door initEncMap() */
 
 /* ── MIDI VARIABELEN ─────────────────────────────────────────────*/
-var mAcc = null;      /* MIDIAccess object (van de browser WebMIDI API) */
-var mIns = [];        /* Lijst van alle MIDI invoerapparaten */
-var actIn = null;     /* Momenteel geselecteerde MIDI invoer */
+var mAcc = null;   /* MIDIAccess object */
+var mIns = [];     /* Lijst MIDI invoerapparaten */
+var actIn = null;  /* Geselecteerd MIDI invoerapparaat */
 
 /* ── GELUID PROFIELEN ────────────────────────────────────────────
-   Elk instrument heeft een profiel met:
-   t  = golfvorm (sine=zacht, sawtooth=rauw, triangle=warm)
-   a  = attack tijd (hoe snel het geluid start, in seconden)
-   d  = decay tijd (hoe snel het daalt na de piek)
-   s  = sustain niveau (0.0-1.0)
-   r  = release tijd (hoe lang het naklinkt na loslaten)
-   h  = harmonischen (boventonen, geeft het klankkleur)
-   dt = detune (kleine toonhoogteverschillen voor dikte) */
+   t = golfvorm, a = attack, d = decay, s = sustain, r = release
+   h = harmonischen, dt = detune */
 var PRF = {
-  pi: { t:'triangle',  a:.005, d:.3,  s:.4,  r:.8,  h:[1,.5,.25,.12,.06], dt:0  }, /* Piano */
-  or: { t:'sine',      a:.01,  d:0,   s:1,   r:.1,  h:[1,.8,.6,.3],       dt:0  }, /* Orgel */
-  gu: { t:'sawtooth',  a:.003, d:.15, s:.3,  r:.4,  h:[1,.6,.3,.15],      dt:2  }, /* Gitaar */
-  st: { t:'sawtooth',  a:.09,  d:.1,  s:.8,  r:.6,  h:[1,.7,.3,.1],       dt:6  }, /* Strijkers */
-  br: { t:'sawtooth',  a:.04,  d:.08, s:.9,  r:.2,  h:[1,.6,.4,.2],       dt:3  }, /* Blaas */
-  sy: { t:'sawtooth',  a:.01,  d:.1,  s:.7,  r:.3,  h:[1,.5,.33,.25],     dt:0  }, /* Synth */
-  ba: { t:'triangle',  a:.005, d:.2,  s:.5,  r:.3,  h:[1,.8,.2,.08],      dt:1  }, /* Bas */
-  pa: { t:'sine',      a:.22,  d:.1,  s:.9,  r:.9,  h:[1,.6,.3,.15],      dt:9  }  /* Pad */
+  pi: { t:'triangle',  a:.005, d:.3,  s:.4,  r:.8,  h:[1,.5,.25,.12,.06], dt:0  },
+  or: { t:'sine',      a:.01,  d:0,   s:1,   r:.1,  h:[1,.8,.6,.3],       dt:0  },
+  gu: { t:'sawtooth',  a:.003, d:.15, s:.3,  r:.4,  h:[1,.6,.3,.15],      dt:2  },
+  st: { t:'sawtooth',  a:.09,  d:.1,  s:.8,  r:.6,  h:[1,.7,.3,.1],       dt:6  },
+  br: { t:'sawtooth',  a:.04,  d:.08, s:.9,  r:.2,  h:[1,.6,.4,.2],       dt:3  },
+  sy: { t:'sawtooth',  a:.01,  d:.1,  s:.7,  r:.3,  h:[1,.5,.33,.25],     dt:0  },
+  ba: { t:'triangle',  a:.005, d:.2,  s:.5,  r:.3,  h:[1,.8,.2,.08],      dt:1  },
+  pa: { t:'sine',      a:.22,  d:.1,  s:.9,  r:.9,  h:[1,.6,.3,.15],      dt:9  }
 };
 
 /* Kies het geluidsprofiel op basis van het GM programmanummer */
 function gP(i) {
-  i = +i; /* Zorg dat i een getal is */
-  if (i <= 7)              return PRF.pi; /* Piano-familie */
-  if (i >= 16 && i <= 23) return PRF.or; /* Orgel-familie */
-  if (i >= 24 && i <= 31) return PRF.gu; /* Gitaar-familie */
-  if (i >= 32 && i <= 39) return PRF.ba; /* Bas-familie */
-  if (i >= 40 && i <= 55) return PRF.st; /* Strijkers-familie */
-  if (i >= 56 && i <= 63) return PRF.br; /* Blaas-familie */
-  if (i >= 80 && i <= 87) return PRF.sy; /* Synth-familie */
-  if (i >= 88 && i <= 95) return PRF.pa; /* Pad-familie */
-  return PRF.pi; /* Standaard: piano */
+  i = +i;
+  if (i <= 7)              return PRF.pi;
+  if (i >= 16 && i <= 23) return PRF.or;
+  if (i >= 24 && i <= 31) return PRF.gu;
+  if (i >= 32 && i <= 39) return PRF.ba;
+  if (i >= 40 && i <= 55) return PRF.st;
+  if (i >= 56 && i <= 63) return PRF.br;
+  if (i >= 80 && i <= 87) return PRF.sy;
+  if (i >= 88 && i <= 95) return PRF.pa;
+  return PRF.pi;
 }
 
-/* Zet een MIDI-nootnummer om naar frequentie in Hz
-   Formule: 440 Hz * 2^((noot-69)/12) — dit is de standaard muziekformule */
+/* Zet MIDI-nootnummer om naar frequentie in Hz */
 function m2f(n) { return 440 * Math.pow(2, (n - 69) / 12); }
 
-/* ── AUDIO CONTEXT INITIALISATIE ────────────────────────────────
-   De AudioContext mag pas starten na een gebruikersactie (browserregel) */
+/* ── AUDIO CONTEXT ───────────────────────────────────────────────*/
 function iA() {
-  if (aC) return; /* Al aangemaakt? Niets te doen */
-  aC = new (window.AudioContext || window.webkitAudioContext)(); /* Maak de audio-motor */
-  mG = aC.createGain(); /* Maak de volumeregelaar */
-  mG.gain.value = vol;  /* Stel het volume in */
-  mG.connect(aC.destination); /* Verbind met de luidsprekers */
+  if (aC) return;
+  aC = new (window.AudioContext || window.webkitAudioContext)();
+  mG = aC.createGain();
+  mG.gain.value = vol;
+  mG.connect(aC.destination);
 }
-
-/* Hervat de AudioContext als de browser hem heeft gepauzeerd */
 function rA() { if (aC && aC.state === 'suspended') aC.resume(); }
 
 /* ── NOOT AAN ────────────────────────────────────────────────────
    Speel een noot af.
-   mn = MIDI-nootnummer (0-127), v = velocity (0-127), hw = van hardware keyboard */
+   mn = MIDI-nootnummer, v = velocity, hw = van hardware */
 function nOn(mn, v, hw) {
-  iA(); rA();         /* Zorg dat audio werkt */
-  nOf(mn, true);      /* Stop eventuele dezelfde noot die al speelt */
+  iA(); rA();
+  nOf(mn, true);
 
-  var p    = gP(instr);                              /* Haal het geluidsprofiel op */
-  var freq = m2f(mn) * Math.pow(2, pb / 12);         /* Bereken frequentie inclusief pitch bend */
-  var vv   = (v / 127) * vol;                        /* Zet velocity om naar volume (0.0-1.0) */
-  var g    = aC.createGain();                        /* Maak een gain node voor deze noot */
-  var now  = aC.currentTime;                         /* Huidige tijdstip in de AudioContext */
+  var p    = gP(instr);
+  var freq = m2f(mn) * Math.pow(2, pb / 12);
+  var vv   = (v / 127) * vol;
+  var g    = aC.createGain();
+  var now  = aC.currentTime;
 
-  /* Maak een laagdoorlaatfilter: maakt de klank zachter boven een bepaalde frequentie */
   var fl = aC.createBiquadFilter();
   fl.type            = 'lowpass';
-  fl.frequency.value = Math.min(3800 + mn * 32, 17000); /* Hogere noten = helderder */
+  fl.frequency.value = Math.min(3800 + mn * 32, 17000);
   fl.Q.value         = .7;
-  fl.connect(g);    /* Filter → gain node */
-  g.connect(mG);    /* Gain node → master volume */
+  fl.connect(g);
+  g.connect(mG);
 
-  /* Stel de volume-envelop in (ADSR: Attack, Decay, Sustain, Release) */
-  g.gain.setValueAtTime(0, now);                                    /* Start op 0 */
-  g.gain.linearRampToValueAtTime(vv, now + p.a);                   /* Stijg naar volume (Attack) */
-  g.gain.linearRampToValueAtTime(vv * p.s, now + p.a + p.d);       /* Daal naar sustain niveau */
+  g.gain.setValueAtTime(0, now);
+  g.gain.linearRampToValueAtTime(vv, now + p.a);
+  g.gain.linearRampToValueAtTime(vv * p.s, now + p.a + p.d);
 
-  /* Maak oscillatoren aan voor elke boventoon (harmonische) */
   var os = p.h.map(function(amp, i) {
-    var o  = aC.createOscillator(); /* Een oscillator maakt een toon */
-    var hg = aC.createGain();       /* Gain voor deze boventoon */
-    o.type           = p.t;                        /* Golfvorm */
-    o.frequency.value = freq * (i + 1);            /* Grondtoon * (1, 2, 3, ...) */
-    o.detune.value   = (i % 2 ? 1 : -1) * p.dt * i; /* Kleine toonverschillen voor dikte */
-    hg.gain.value    = amp;                        /* Volume van deze boventoon */
-    o.connect(hg);                                 /* Oscillator → boventoon-gain */
-    hg.connect(fl);                                /* Boventoon-gain → filter */
-    o.start(now);                                  /* Start de oscillator */
+    var o  = aC.createOscillator();
+    var hg = aC.createGain();
+    o.type            = p.t;
+    o.frequency.value = freq * (i + 1);
+    o.detune.value    = (i % 2 ? 1 : -1) * p.dt * i;
+    hg.gain.value     = amp;
+    o.connect(hg);
+    hg.connect(fl);
+    o.start(now);
     return o;
   });
 
-  /* Sla de actieve noot op zodat we hem later kunnen stoppen */
   aN[mn] = { g: g, os: os, p: p };
-  kviz(mn, true);  /* Licht de toets op op het scherm */
-  flash();         /* Laat het LED-lampje knipperen */
+  kviz(mn, true);
+  flash();
 
-  /* Toon de nootnaam onderaan */
   document.getElementById('noteTxt').textContent =
     (hw ? '[HW] ' : '') + NN[mn % 12] + (Math.floor(mn / 12) - 1) + ' · MIDI ' + mn;
 }
 
-/* ── NOOT UIT ────────────────────────────────────────────────────
-   Stop een noot.
-   mn = MIDI-nootnummer, force = stop ook als sustain aan staat */
+/* ── NOOT UIT ────────────────────────────────────────────────────*/
 function nOf(mn, force) {
-  if (!aN[mn]) return; /* Noot speelt niet? Niets te doen */
-  if (sus && !force) { susH[mn] = true; return; } /* Sustain aan: bewaar voor later */
+  if (!aN[mn]) return;
+  if (sus && !force) { susH[mn] = true; return; }
 
   var x   = aN[mn];
   var now = aC ? aC.currentTime : 0;
 
-  /* Laat het volume langzaam wegvallen (Release) */
   x.g.gain.cancelScheduledValues(now);
   x.g.gain.setValueAtTime(x.g.gain.value, now);
   x.g.gain.linearRampToValueAtTime(0, now + x.p.r);
 
-  /* Stop alle oscillatoren na de release-tijd */
   x.os.forEach(function(o) {
     try { o.stop(now + x.p.r + .05); } catch(e) {}
   });
 
-  delete aN[mn];    /* Verwijder de noot uit het actieve noten-object */
-  kviz(mn, false);  /* Zet de toets terug naar normale kleur */
+  delete aN[mn];
+  kviz(mn, false);
 }
 
-/* Stop alle actieve noten tegelijk (bijv. bij model-wissel) */
+/* Stop alle actieve noten */
 function allOf() {
   Object.keys(aN).forEach(function(n) { nOf(+n, true); });
   susH = {};
 }
 
-/* Licht een piano-toets op of uit op het scherm */
+/* Licht een piano-toets op of uit */
 function kviz(mn, on) {
-  /* Zoek het HTML-element voor deze toets (-tr want het scherm toont de niet-getransponeerde toetsen) */
   var e = document.querySelector('[data-m="' + (mn - tr) + '"]');
   if (e) e.classList.toggle('on', on);
 }
 
 /* ── ZOOM FUNCTIES (v2.2) ────────────────────────────────────────*/
-
-/* Pas de zoom toe op de piano en strips.
-   Berekent de echte toetsafmetingen (basis × zoom) en past de
-   CSS custom property --zoom aan zodat de strips meeschalen. */
 function applyZoom() {
-  var z = ZOOM_LEVELS[zoomIdx]; /* Het huidige zoom-getal (1, 1.5 of 2) */
+  var z = ZOOM_LEVELS[zoomIdx];
 
-  /* Bereken de toetsafmetingen op basis van de zoom-factor */
-  var ww = Math.round(WW * z); /* Breedte witte toets: 36 × zoom */
-  var wh = Math.round(WH * z); /* Hoogte witte toets: 170 × zoom */
-  var bw = Math.round(BW * z); /* Breedte zwarte toets: 22 × zoom */
-  var bh = Math.round(BH * z); /* Hoogte zwarte toets: 105 × zoom */
+  var ww = Math.round(WW * z);
+  var wh = Math.round(WH * z);
+  var bw = Math.round(BW * z);
+  var bh = Math.round(BH * z);
 
-  /* Stel de CSS --zoom variabele in zodat de strips meeschalen */
   document.documentElement.style.setProperty('--zoom', z);
 
-  /* Update de zoom-label tekst in de statusbalk */
   var lbl = document.getElementById('zoomLbl');
   if (lbl) lbl.textContent = z === 1 ? '1×' : z === 1.5 ? '1.5×' : '2×';
 
-  /* Grijs de − knop uit als we al op het kleinste niveau zitten */
   var btnOut = document.getElementById('zoomOut');
   if (btnOut) btnOut.disabled = (zoomIdx === 0);
 
-  /* Grijs de + knop uit als we al op het grootste niveau zitten */
   var btnIn = document.getElementById('zoomIn');
   if (btnIn) btnIn.disabled = (zoomIdx === ZOOM_LEVELS.length - 1);
 
-  /* Sla het zoom-niveau op in localStorage voor de volgende sessie */
   localStorage.setItem('vk-zoom', zoomIdx);
 
-  /* Herbouw de piano met de nieuwe afmetingen */
   var c = MC[mdl];
   var s = c.s + octOff * 12;
-  buildKB(c.n, s, ww, wh, bw, bh); /* Geef de nieuwe afmetingen mee */
-
-  console.log('[VersaKey] Zoom gewijzigd naar', z + '×',
-    '| toets:', ww + '×' + wh + 'px');
+  buildKB(c.n, s, ww, wh, bw, bh);
 }
 
-/* Verander het zoom-niveau met d stapjes (+1 of -1).
-   Begrens zodat we niet buiten de 3 niveaus gaan. */
+/* Verander zoom-niveau met d stappen (+1 of -1) */
 function chZoom(d) {
   zoomIdx = Math.max(0, Math.min(ZOOM_LEVELS.length - 1, zoomIdx + d));
-  applyZoom(); /* Pas de nieuwe zoom meteen toe */
+  applyZoom();
 }
 
 /* ── PIANO BOUWEN ────────────────────────────────────────────────
-   Bouw het pianotoetsenbord in HTML op basis van het model.
    n = aantal toetsen, s = startende MIDI-nootnummer
-   ww/wh/bw/bh = optionele afmetingen; als niet opgegeven worden
-   ze berekend uit de basis-afmetingen × de huidige zoom-factor. */
+   ww/wh/bw/bh = optionele afmetingen */
 function buildKB(n, s, ww, wh, bw, bh) {
-  /* Bereken de afmetingen als ze niet meegegeven zijn */
-  var z = ZOOM_LEVELS[zoomIdx];          /* Huidige zoom-factor (1 / 1.5 / 2) */
-  ww = ww || Math.round(WW * z);        /* Breedte witte toets (bijv. 36, 54, 72) */
-  wh = wh || Math.round(WH * z);        /* Hoogte witte toets (bijv. 170, 255, 340) */
-  bw = bw || Math.round(BW * z);        /* Breedte zwarte toets */
-  bh = bh || Math.round(BH * z);        /* Hoogte zwarte toets */
+  var z = ZOOM_LEVELS[zoomIdx];
+  ww = ww || Math.round(WW * z);
+  wh = wh || Math.round(WH * z);
+  bw = bw || Math.round(BW * z);
+  bh = bh || Math.round(BH * z);
 
   var kb = document.getElementById('kb');
-  kb.innerHTML = '';                     /* Verwijder het oude toetsenbord */
-  kb.style.height = wh + 'px';          /* Hoogte op basis van zoom */
+  kb.innerHTML = '';
+  kb.style.height = wh + 'px';
 
-  var wc = 0; /* Teller voor witte toetsen (bepaalt de totale breedte) */
-  var ks = []; /* Array met informatie over elke toets */
+  var wc = 0;
+  var ks = [];
 
-  /* Ga door alle toetsen heen en bepaal of ze wit of zwart zijn */
   for (var i = 0; i < n; i++) {
-    var m  = s + i;         /* MIDI-nootnummer van deze toets */
-    var ni = m % 12;        /* Positie in het octaaf (0=C, 1=C#, etc.) */
-    var ib = !!BP[ni];      /* Is het een zwarte toets? */
-    if (!ib) wc++;           /* Tel witte toetsen */
+    var m  = s + i;
+    var ni = m % 12;
+    var ib = !!BP[ni];
+    if (!ib) wc++;
     ks.push({ m: m, ni: ni, ib: ib });
   }
 
-  /* Stel de totale breedte van het toetsenbord in (zoom meerekenen) */
   kb.style.width = (wc * ww) + 'px';
 
-  var wx = 0; /* Horizontale positie van de volgende witte toets */
+  var wx = 0;
 
-  /* Maak elk toets-element aan */
   ks.forEach(function(k) {
     var el = document.createElement('div');
-    el.dataset.m = k.m; /* Sla het MIDI-nootnummer op als data-attribuut */
+    el.dataset.m = k.m;
 
     if (!k.ib) {
-      /* WITTE TOETS — gebruik de gezoomde afmetingen */
       el.className = 'wk';
       el.style.cssText = 'left:' + wx + 'px;width:' + ww + 'px;height:' + wh + 'px;';
 
-      /* Voeg "C2", "C3" labels toe aan C-toetsen */
       if (NN[k.ni] === 'C') {
         var lb = document.createElement('span');
         lb.className   = 'k-lbl';
         lb.textContent = 'C' + (Math.floor(k.m / 12) - 1);
         el.appendChild(lb);
       }
-      wx += ww; /* Ga naar de positie van de volgende witte toets */
-
+      wx += ww;
     } else {
-      /* ZWARTE TOETS — gebruik de gezoomde afmetingen */
       el.className = 'bk';
-      /* Positioneer iets voor de volgende witte toets (overlap) */
       el.style.cssText = 'left:' + (wx - bw * .6) + 'px;width:' + bw + 'px;height:' + bh + 'px;top:0;';
     }
 
-    /* Aanraak-events voor touchschermen */
     el.addEventListener('touchstart', function(e) { e.preventDefault(); kDn(k.m); }, { passive: false });
     el.addEventListener('touchend',   function(e) { e.preventDefault(); kUp(k.m); }, { passive: false });
-
-    /* Muis-events voor desktop */
     el.addEventListener('mousedown',  function(e) { e.preventDefault(); kDn(k.m); });
     el.addEventListener('mouseup',    function()  { kUp(k.m); });
     el.addEventListener('mouseleave', function()  { if (aN[k.m + tr]) kUp(k.m); });
 
-    kb.appendChild(el); /* Voeg de toets toe aan het toetsenbord */
+    kb.appendChild(el);
   });
 }
 
-/* Noot AAN via het klikken/aanraken van een piano-toets */
+/* Noot AAN via piano-toets klik */
 function kDn(m) {
-  var f = m + tr; /* Voeg transpositie toe */
-  if (f >= 0 && f <= 127) nOn(f, vel, false); /* Speel de noot */
+  var f = m + tr;
+  if (f >= 0 && f <= 127) nOn(f, vel, false);
 }
 
-/* Noot UIT als je de piano-toets loslaat */
+/* Noot UIT bij loslaten piano-toets */
 function kUp(m) {
-  nOf(m + tr); /* Stop de noot */
+  nOf(m + tr);
   document.getElementById('noteTxt').textContent = '— speel een toets —';
 }
 
-/* ── ENCODER FUNCTIES (v2.1) ────────────────────────────────────*/
+/* ── CC DEBUG MONITOR (v2.3) ─────────────────────────────────────
+   Bouw de 8 mini-blokjes in de debug-balk */
+function buildCCSlots() {
+  var g = document.getElementById('ccSlots');
+  g.innerHTML = ''; /* Leegmaken */
 
-/* Bouw de standaard CC-map op basis van ENC_DEF
-   Dit zorgt dat de app bij opstart al weet: CC74 → encoder 0, CC71 → encoder 1, etc. */
-function initEncMap() {
-  encMap = {}; /* Leegmaken voor een frisse start */
   ENC_DEF.forEach(function(e, i) {
-    encMap[e.cc] = i; /* Koppel: CC-nummer → encoder-index */
+    var slot = document.createElement('div');
+    slot.className = 'cc-slot';
+    slot.id        = 'ccSlot' + i; /* ID: ccSlot0 t/m ccSlot7 */
+
+    /* R1, R2... label */
+    var lbl = document.createElement('div');
+    lbl.className   = 'cc-slot-lbl';
+    lbl.textContent = 'R' + (i + 1);
+
+    /* CC-nummer */
+    var cc = document.createElement('div');
+    cc.className   = 'cc-slot-cc';
+    cc.id          = 'ccSlotCC' + i;
+    cc.textContent = 'CC' + e.cc; /* Start met de standaard waarde */
+
+    /* Waarde (0-127) */
+    var val = document.createElement('div');
+    val.className   = 'cc-slot-val';
+    val.id          = 'ccSlotVal' + i;
+    val.textContent = '—'; /* Nog geen waarde ontvangen */
+
+    slot.appendChild(lbl);
+    slot.appendChild(cc);
+    slot.appendChild(val);
+    g.appendChild(slot);
   });
+}
+
+/* Update één CC-slot als er een bericht binnenkomt.
+   slotIdx = 0-7 (of -1 als het CC-nummer onbekend is)
+   ccNum   = het CC-nummer dat binnenkwam
+   ccVal   = de waarde (0-127) */
+function updateCCSlot(slotIdx, ccNum, ccVal) {
+  /* Update de grote live-tekst altijd */
+  var live = document.getElementById('ccLive');
+  if (live) {
+    var naam = slotIdx >= 0 ? (' → ' + ENC_DEF[slotIdx].n + ' (R' + (slotIdx+1) + ')') : ' (ONBEKEND)';
+    live.textContent = 'Laatste: CC' + ccNum + ' = ' + ccVal + naam;
+  }
+
+  if (slotIdx < 0) return; /* Onbekend CC-nummer: geen slot bijwerken */
+
+  /* Update het CC-slot blokje */
+  var slotCC  = document.getElementById('ccSlotCC'  + slotIdx);
+  var slotVal = document.getElementById('ccSlotVal' + slotIdx);
+  var slot    = document.getElementById('ccSlot'    + slotIdx);
+
+  if (slotCC)  slotCC.textContent  = 'CC' + ccNum;
+  if (slotVal) slotVal.textContent = ccVal;
+
+  /* Laat het blokje even oplichten */
+  if (slot) {
+    slot.classList.add('active');
+    clearTimeout(slot._t);
+    slot._t = setTimeout(function() { slot.classList.remove('active'); }, 300);
+  }
+}
+
+/* Toon of verberg de CC debug monitor balk */
+function toggleDebug() {
+  var bar = document.getElementById('ccDebug');
+  var btn = document.getElementById('debugToggleBtn');
+  var hidden = bar.classList.toggle('hidden'); /* Wissel de hidden klasse */
+  btn.textContent = hidden ? 'Toon CC Monitor' : 'Verberg';
+  /* Als de balk verborgen is, toon dan een knopje bovenaan de encoder-balk */
+  document.getElementById('showDebugBtn').style.display = hidden ? 'inline-block' : 'none';
+}
+
+/* ── ENCODER FUNCTIES ────────────────────────────────────────────*/
+
+/* Bouw de standaard CC→encoder koppelingsmap.
+   Resultaat: encMap[74] = 0, encMap[71] = 1, etc. */
+function initEncMap() {
+  encMap = {};
+  ENC_DEF.forEach(function(e, i) {
+    encMap[e.cc] = i; /* CC-nummer → encoder-index */
+  });
+  /* Log de map zodat je in de console kunt controleren */
+  console.log('[VersaKey] Encoder CC-map:', JSON.stringify(encMap));
 }
 
 /* Bouw het HTML-raster van 8 encoder-blokken */
 function buildEncoders() {
   var g = document.getElementById('encGrid');
-  g.innerHTML = ''; /* Leegmaken bij herbouw */
+  g.innerHTML = '';
 
   ENC_DEF.forEach(function(e, i) {
-    /* Maak het buitenste blokje aan */
     var cell = document.createElement('div');
-    cell.className  = 'enc-cell';
-    cell.id         = 'enc' + i; /* ID voor later opzoeken: enc0, enc1, ... enc7 */
+    cell.className = 'enc-cell';
+    cell.id        = 'enc' + i;
 
-    /* ── Bovenste rij: naam + CC-badge ── */
+    /* Bovenste rij: R-nummer links, CC-badge rechts */
     var head = document.createElement('div');
     head.className = 'enc-head';
 
-    /* Naam van de parameter */
-    var nm = document.createElement('span');
-    nm.className   = 'enc-name';
-    nm.id          = 'encName' + i; /* ID voor aanpassen bij learn */
-    nm.textContent = e.n;           /* Bijv. "Cutoff" */
+    /* R1, R2 ... R8 label */
+    var rnum = document.createElement('span');
+    rnum.className   = 'enc-rnum';
+    rnum.textContent = 'R' + (i + 1);
 
-    /* CC-nummer badge — klik hierop om MIDI Learn te starten */
+    /* CC-nummer badge */
     var cc = document.createElement('span');
     cc.className   = 'enc-cc';
-    cc.id          = 'encCC' + i;   /* ID voor aanpassen bij learn */
-    cc.textContent = 'CC' + e.cc;   /* Bijv. "CC74" */
-    cc.title       = 'Klik om MIDI Learn te starten voor R' + (i + 1);
-    /* Bij klikken: start of stop de learn-modus voor deze encoder */
+    cc.id          = 'encCC' + i;
+    cc.textContent = 'CC' + e.cc;
+    cc.title       = 'Klik → MIDI Learn voor R' + (i + 1) + '. Draai daarna de knop op de VersaKey.';
     cc.addEventListener('click', function() { ccLearn(i); });
 
-    head.appendChild(nm);
+    head.appendChild(rnum);
     head.appendChild(cc);
 
-    /* ── Meter-balk ── */
+    /* Parameter naam */
+    var nm = document.createElement('span');
+    nm.className   = 'enc-name';
+    nm.id          = 'encName' + i;
+    nm.textContent = e.n;
+
+    /* Meter-balk achtergrond */
     var track = document.createElement('div');
     track.className = 'enc-track';
 
     var fill = document.createElement('div');
-    fill.className = 'enc-fill ' + e.col; /* Kleurklasse op basis van groep */
-    fill.id        = 'encFill' + i;       /* ID voor live aanpassen van breedte */
-    fill.style.width = Math.round(encVals[i] / 127 * 100) + '%'; /* Start op 50% */
+    fill.className = 'enc-fill ' + e.col;
+    fill.id        = 'encFill' + i;
+    fill.style.width = Math.round(encVals[i] / 127 * 100) + '%';
 
     track.appendChild(fill);
 
-    /* ── Onderste rij: waarde-getal ── */
-    var foot = document.createElement('div');
-    foot.className = 'enc-foot';
-
-    var val = document.createElement('span');
+    /* Waarde getal — v2.3: altijd zichtbaar, groter, vetgedrukt */
+    var val = document.createElement('div');
     val.className   = 'enc-val';
-    val.id          = 'encVal' + i; /* ID voor live bijwerken van de waarde */
-    val.textContent = encVals[i];   /* Start op 64 */
+    val.id          = 'encVal' + i;
+    val.textContent = encVals[i]; /* Start op 64 */
 
-    foot.appendChild(val);
-
-    /* Alles samenvoegen in het blokje */
+    /* Alles samenvoegen */
     cell.appendChild(head);
+    cell.appendChild(nm);
     cell.appendChild(track);
-    cell.appendChild(foot);
+    cell.appendChild(val);
     g.appendChild(cell);
   });
 }
 
-/* Update de visuele balk en het getal van één encoder.
-   i = encoder-index (0-7), v = nieuwe CC-waarde (0-127) */
+/* Update de visuele balk en getal van één encoder.
+   i = encoder-index (0-7), v = CC-waarde (0-127) */
 function updEncoder(i, v) {
-  encVals[i] = v; /* Sla de nieuwe waarde op */
+  encVals[i] = v;
 
-  /* Update de breedte van de balk: 0=0%, 127=100% */
   var fill = document.getElementById('encFill' + i);
   if (fill) fill.style.width = Math.round(v / 127 * 100) + '%';
 
-  /* Update het getal */
   var val = document.getElementById('encVal' + i);
   if (val) val.textContent = v;
 }
 
-/* Start MIDI Learn voor encoder i.
-   Als er al een encoder in learn-modus is, stop die eerst.
-   Als je op dezelfde encoder klikt: schakel learn-modus uit. */
+/* Start MIDI Learn voor encoder i */
 function ccLearn(i) {
   var statusEl = document.getElementById('encLearnStatus');
 
-  /* Als dezelfde encoder al in learn-modus staat: uitzetten */
+  /* Als dezelfde encoder al in learn staat: uitzetten */
   if (encLearn === i) {
     stopLearn();
     return;
   }
 
   /* Stop eventuele vorige learn-sessie */
-  if (encLearn !== null) stopLearn(true); /* true = stille stop, geen status-reset */
+  if (encLearn !== null) stopLearn(true);
 
-  /* Start learn-modus voor encoder i */
   encLearn = i;
 
-  /* Visuele feedback: blok pulseert, CC-badge oranje */
   var cell = document.getElementById('enc' + i);
   var cc   = document.getElementById('encCC' + i);
-  if (cell) cell.classList.add('learning');   /* Pulserende rand */
-  if (cc)   cc.classList.add('learn-active'); /* Oranje badge */
+  if (cell) cell.classList.add('learning');
+  if (cc)   cc.classList.add('learn-active');
 
-  /* Status-tekst bijwerken */
-  statusEl.textContent = 'R' + (i + 1) + ' wacht op knop... (draai de encoder)';
+  statusEl.textContent = '👂 R' + (i + 1) + ' wacht... draai nu de encoder op je VersaKey';
   statusEl.classList.add('active');
 
-  console.log('[VersaKey] Learn-modus gestart voor encoder', i, '(R' + (i+1) + ')');
+  console.log('[VersaKey] Learn-modus gestart voor R' + (i+1) + ' (encoder index ' + i + ')');
 }
 
-/* Stop de huidige MIDI Learn sessie.
-   silent = true: geen status-tekst resetten (bij wisselen naar andere encoder) */
+/* Stop de huidige learn-sessie */
 function stopLearn(silent) {
-  if (encLearn === null) return; /* Niets te stoppen */
+  if (encLearn === null) return;
 
   var i    = encLearn;
   var cell = document.getElementById('enc' + i);
   var cc   = document.getElementById('encCC' + i);
 
-  /* Verwijder visuele leer-indicators */
   if (cell) cell.classList.remove('learning');
   if (cc)   cc.classList.remove('learn-active');
 
-  encLearn = null; /* Geen encoder meer in learn-modus */
+  encLearn = null;
 
   if (!silent) {
-    /* Reset de status-tekst */
     var statusEl = document.getElementById('encLearnStatus');
     statusEl.textContent = '— klik CC-badge om te leren —';
     statusEl.classList.remove('active');
   }
 }
 
-/* Verwerk een geleerd CC-nummer voor de actieve encoder.
-   Wordt aangeroepen vanuit onMidi() als learn-modus actief is.
-   newCC = het CC-nummer dat de gebruiker net gedraaid heeft */
+/* Verwerk een geleerd CC-nummer voor de actieve encoder */
 function finishLearn(newCC) {
-  var i    = encLearn; /* De encoder die aan het leren is */
-  var oldCC = ENC_DEF[i].cc; /* Het oude CC-nummer van deze encoder */
+  var i     = encLearn;
+  var oldCC = ENC_DEF[i].cc;
 
-  /* Verwijder de oude koppeling uit de map */
+  /* Verwijder de oude CC-koppeling */
   delete encMap[oldCC];
 
-  /* Schrijf de nieuwe koppeling: newCC → encoder i */
+  /* Schrijf de nieuwe koppeling */
   ENC_DEF[i].cc = newCC;
   encMap[newCC]  = i;
 
@@ -1451,69 +1596,79 @@ function finishLearn(newCC) {
   var ccEl = document.getElementById('encCC' + i);
   if (ccEl) ccEl.textContent = 'CC' + newCC;
 
-  console.log('[VersaKey] Encoder R' + (i+1) + ' geleerd: nu CC' + newCC);
+  /* Update ook het CC-slot in de debug monitor */
+  var slotCC = document.getElementById('ccSlotCC' + i);
+  if (slotCC) slotCC.textContent = 'CC' + newCC;
 
-  /* Stop learn-modus */
+  console.log('[VersaKey] ✓ R' + (i+1) + ' geleerd: CC' + oldCC + ' → CC' + newCC);
+  console.log('[VersaKey] Nieuwe encoder CC-map:', JSON.stringify(encMap));
+
   stopLearn();
 
-  /* Bevestiging in status-tekst */
   var statusEl = document.getElementById('encLearnStatus');
-  statusEl.textContent = '✓ R' + (i+1) + ' = CC' + newCC + ' opgeslagen';
+  statusEl.textContent = '✓ R' + (i+1) + ' = CC' + newCC + ' opgeslagen!';
   statusEl.classList.add('active');
-  /* Status-bevestiging na 2 seconden verbergen */
+
   setTimeout(function() {
     statusEl.textContent = '— klik CC-badge om te leren —';
     statusEl.classList.remove('active');
-  }, 2000);
+  }, 2500);
 }
 
-/* Verwijder alle geleerde koppelingen en herstel de standaard CC-nummers */
+/* Verwijder alle geleerde koppelingen, herstel standaard */
 function resetLearn() {
-  stopLearn(); /* Stop eventuele actieve learn-sessie */
+  stopLearn();
 
-  /* Herstel ENC_DEF naar de standaard CC-nummers (uit het handboek) */
+  /* Herstel standaard CC-nummers uit het handboek */
   var defaults = [74, 71, 21, 18, 73, 72, 93, 7];
   defaults.forEach(function(cc, i) {
     ENC_DEF[i].cc = cc;
     var ccEl = document.getElementById('encCC' + i);
     if (ccEl) ccEl.textContent = 'CC' + cc;
+    /* Update ook de debug-slots */
+    var slotCC = document.getElementById('ccSlotCC' + i);
+    if (slotCC) slotCC.textContent = 'CC' + cc;
+    var slotVal = document.getElementById('ccSlotVal' + i);
+    if (slotVal) slotVal.textContent = '—';
   });
 
-  /* Herbouw de CC-map */
-  initEncMap();
+  initEncMap(); /* Herbouw de map */
 
-  /* Reset alle waarden naar 64 (midden) */
+  /* Reset alle waarden naar 64 */
   encVals = [64, 64, 64, 64, 64, 64, 64, 64];
   for (var i = 0; i < 8; i++) updEncoder(i, 64);
 
-  /* Status-tekst */
+  /* Reset de live-tekst */
+  var live = document.getElementById('ccLive');
+  if (live) live.textContent = '— draai een knop om te zien welk CC binnenkomt —';
+
   var statusEl = document.getElementById('encLearnStatus');
-  statusEl.textContent = '↺ Standaard CC-nummers hersteld';
+  statusEl.textContent = '↺ Standaard hersteld (CC74,71,21,18,73,72,93,7)';
   statusEl.classList.add('active');
   setTimeout(function() {
     statusEl.textContent = '— klik CC-badge om te leren —';
     statusEl.classList.remove('active');
-  }, 2000);
+  }, 2500);
 
-  console.log('[VersaKey] Encoder CC-koppelingen gereset naar standaard');
+  console.log('[VersaKey] Encoder CC-koppelingen gereset naar standaard handboek waarden');
 }
 
-/* ── DRUM PADS ───────────────────────────────────────────────────
-   Twee banken van 8 pads elk.
-   n = naam, m = MIDI-nootnummer, c = kleur */
+/* ── HELP POPUP ──────────────────────────────────────────────────*/
+function showHelp() { document.getElementById('helpOverlay').classList.add('show'); }
+function hideHelp() { document.getElementById('helpOverlay').classList.remove('show'); }
+
+/* ── DRUM PADS ───────────────────────────────────────────────────*/
 var BANKS = [
-  /* Bank 1-8: standaard drumstel */
   [
-    { n:'Kick',    m:36, c:'#c0392b' }, /* Bassdrum: rood */
-    { n:'Snare',   m:38, c:'#8b6f3a' }, /* Snare: bruin */
-    { n:'Hi-Hat',  m:42, c:'#2980b9' }, /* Hi-hat gesloten: blauw */
-    { n:'Open HH', m:46, c:'#27ae60' }, /* Hi-hat open: groen */
-    { n:'Tom L',   m:41, c:'#8e44ad' }, /* Lage tom: paars */
-    { n:'Tom H',   m:50, c:'#d35400' }, /* Hoge tom: oranje */
-    { n:'Crash',   m:49, c:'#c0392b' }, /* Crash cymbal: rood */
-    { n:'Ride',    m:51, c:'#16a085' }  /* Ride cymbal: groenblauw */
+    { n:'Kick',    m:36, c:'#c0392b' },
+    { n:'Snare',   m:38, c:'#8b6f3a' },
+    { n:'Hi-Hat',  m:42, c:'#2980b9' },
+    { n:'Open HH', m:46, c:'#27ae60' },
+    { n:'Tom L',   m:41, c:'#8e44ad' },
+    { n:'Tom H',   m:50, c:'#d35400' },
+    { n:'Crash',   m:49, c:'#c0392b' },
+    { n:'Ride',    m:51, c:'#16a085' }
   ],
-  /* Bank 9-16: extra percussie */
   [
     { n:'Clap',    m:39, c:'#e67e22' },
     { n:'Rim',     m:37, c:'#2c3e50' },
@@ -1526,67 +1681,61 @@ var BANKS = [
   ]
 ];
 
-/* Bouw de pad-knoppen in het HTML-raster */
+/* Bouw de pad-knoppen */
 function buildPads() {
   var g = document.getElementById('padsG');
-  g.innerHTML = ''; /* Leegmaken */
+  g.innerHTML = '';
 
   BANKS[bank].forEach(function(s, i) {
     var p  = document.createElement('div');
     p.className = 'pad';
 
-    /* Gekleurde achtergrond van de pad */
     var bg = document.createElement('div');
-    bg.className       = 'pad-bg';
+    bg.className        = 'pad-bg';
     bg.style.background = s.c;
     p.appendChild(bg);
 
-    /* Naam van het instrument */
     var nm = document.createElement('span');
     nm.className   = 'pad-name';
     nm.textContent = s.n;
     p.appendChild(nm);
 
-    /* Padnummer (1-8 of 9-16) */
     var nb = document.createElement('span');
     nb.className   = 'pad-n';
     nb.textContent = (bank * 8 + i + 1);
     p.appendChild(nb);
 
-    /* Aanraak-event */
     p.addEventListener('touchstart', function(e) { e.preventDefault(); padHit(p, s.m); }, { passive: false });
-    /* Muis-event */
     p.addEventListener('mousedown', function() { padHit(p, s.m); });
 
     g.appendChild(p);
   });
 }
 
-/* Wissel tussen bank 1-8 en 9-16 */
+/* Wissel tussen pad bank 1-8 en 9-16 */
 function chBank() {
-  bank = bank ? 0 : 1; /* Toggle: 0→1 of 1→0 */
+  bank = bank ? 0 : 1;
   document.getElementById('bankBtn').textContent = bank ? 'Bank 9–16' : 'Bank 1–8';
   buildPads();
 }
 
-/* Verwerk een pad-treffer: visueel + geluid */
+/* Verwerk een pad-treffer */
 function padHit(pd, m) {
   iA(); rA();
-  pd.classList.add('hit');                                 /* Animeer de pad ingedrukt */
-  setTimeout(function() { pd.classList.remove('hit'); }, 110); /* Animatie terug na 110ms */
-  pDrum(m); /* Speel het drumgeluid af */
-  flash();  /* Knippert het LED */
+  pd.classList.add('hit');
+  setTimeout(function() { pd.classList.remove('hit'); }, 110);
+  pDrum(m);
+  flash();
 }
 
-/* Genereer drumgeluiden via Web Audio (zonder samples) */
+/* Genereer drumgeluiden via Web Audio */
 function pDrum(m) {
   if (!aC) return;
   var now = aC.currentTime;
   var g   = aC.createGain();
-  g.connect(mG); /* Verbind met master volume */
+  g.connect(mG);
 
   if (m === 36) {
-    /* KICK: sinusgolf die snel in toonhoogte daalt (van 160Hz naar 40Hz) */
     var o = aC.createOscillator();
     o.type = 'sine';
     o.frequency.setValueAtTime(160, now);
@@ -1594,9 +1743,7 @@ function pDrum(m) {
     g.gain.setValueAtTime(vol, now);
     g.gain.exponentialRampToValueAtTime(.001, now + .35);
     o.connect(g); o.start(now); o.stop(now + .36);
-
   } else if (m === 38 || m === 39) {
-    /* SNARE / CLAP: ruis met bandpass-filter */
     var b = aC.createBuffer(1, Math.floor(aC.sampleRate * .25), aC.sampleRate);
     var d = b.getChannelData(0);
     for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) * .8;
@@ -1606,22 +1753,18 @@ function pDrum(m) {
     g.gain.setValueAtTime(vol * .75, now);
     g.gain.exponentialRampToValueAtTime(.001, now + .25);
     src.start(now);
-
   } else if (m === 42 || m === 46 || m === 55) {
-    /* HI-HAT / SPLASH: ruis met hogepass-filter */
     var b = aC.createBuffer(1, Math.floor(aC.sampleRate * .15), aC.sampleRate);
     var d = b.getChannelData(0);
     for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     var src = aC.createBufferSource(); src.buffer = b;
     var f = aC.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = m === 46 ? 7000 : 10000;
     src.connect(f); f.connect(g);
-    var dr = m === 46 ? .2 : .06; /* Open hi-hat klinkt langer */
+    var dr = m === 46 ? .2 : .06;
     g.gain.setValueAtTime(vol * .45, now);
     g.gain.exponentialRampToValueAtTime(.001, now + dr);
     src.start(now);
-
   } else if (m === 49 || m === 51 || m === 57) {
-    /* CRASH / RIDE CYMBAL: ruis met bandpass, langere decay */
     var b = aC.createBuffer(1, Math.floor(aC.sampleRate * .6), aC.sampleRate);
     var d = b.getChannelData(0);
     for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length * .8);
@@ -1631,10 +1774,8 @@ function pDrum(m) {
     g.gain.setValueAtTime(vol * .5, now);
     g.gain.exponentialRampToValueAtTime(.001, now + .6);
     src.start(now);
-
   } else {
-    /* OVERIGE SLAGEN (toms, percussie): sinusgolf die daalt */
-    var bf = 40 + (m - 36) * 6; /* Basistoonhoogte op basis van nootnummer */
+    var bf = 40 + (m - 36) * 6;
     var o  = aC.createOscillator();
     o.type = 'sine';
     o.frequency.setValueAtTime(bf * 2, now);
@@ -1648,20 +1789,19 @@ function pDrum(m) {
 /* ── MODEL WISSELEN ──────────────────────────────────────────────*/
 function setModel(n) {
   mdl = n;
-  /* Update de knoppen: de actieve knop krijgt de 'mon' klasse */
   ['25','49','61','88'].forEach(function(x) {
     document.getElementById('m' + x).classList.toggle('mon', +x === n);
   });
   var c = MC[n];
-  var s = c.s + octOff * 12; /* Startpositie inclusief octaafverschuiving */
-  buildKB(c.n, s);           /* Herbouw het toetsenbord */
-  allOf();                    /* Stop alle noten */
-  updOct(s);                  /* Update de octaaf-weergave */
+  var s = c.s + octOff * 12;
+  buildKB(c.n, s);
+  allOf();
+  updOct(s);
 }
 
-/* Verander het octaaf met d stapjes (+1 of -1) */
+/* Verander octaaf */
 function chOct(d) {
-  octOff = Math.max(-3, Math.min(3, octOff + d)); /* Begrens tussen -3 en +3 */
+  octOff = Math.max(-3, Math.min(3, octOff + d));
   var c  = MC[mdl];
   var s  = c.s + octOff * 12;
   buildKB(c.n, s);
@@ -1669,121 +1809,104 @@ function chOct(d) {
   updOct(s);
 }
 
-/* Toon het huidige startoctaaf in de topbar */
+/* Toon huidig startoctaaf */
 function updOct(s) {
   document.getElementById('octV').textContent = NN[((s % 12) + 12) % 12] + (Math.floor(s / 12) - 1);
 }
 
-/* Verander de transpositie (halve tonen) */
+/* Verander transpositie */
 function chTr(d) {
-  tr = Math.max(-12, Math.min(12, tr + d)); /* Begrens tussen -12 en +12 halve tonen */
+  tr = Math.max(-12, Math.min(12, tr + d));
   document.getElementById('trV').textContent = (tr > 0 ? '+' : '') + tr;
 }
 
-/* Verander het volume */
+/* Verander volume */
 function chVol(v) {
-  vol = v / 100; /* Zet 0-100 om naar 0.0-1.0 */
-  if (mG) mG.gain.value = vol; /* Pas de master gain aan */
+  vol = v / 100;
+  if (mG) mG.gain.value = vol;
   document.getElementById('volV').textContent = v;
 }
 
-/* Wissel het instrument (GM programmanummer) */
+/* Wissel instrument */
 function setInstr(v) {
   instr = +v;
-  allOf(); /* Stop alle noten die de oude klank gebruiken */
+  allOf();
 }
 
-/* Schakel sustain aan of uit */
+/* Schakel sustain */
 function chSus() {
   sus = !sus;
   document.getElementById('susBtn').classList.toggle('on', sus);
   if (!sus) {
-    /* Sustain uitgeschakeld: stop alle vastgehouden noten */
     Object.keys(susH).forEach(function(n) { nOf(+n, true); });
     susH = {};
   }
 }
 
-/* ── TOUCH STRIPS (Pitch Bend en Modulatie) ──────────────────────*/
-
-/* Start slepen op een strip */
+/* ── TOUCH STRIPS ────────────────────────────────────────────────*/
 function sS(e, t) {
   e.preventDefault();
-  sDr[t] = true; /* Markeer als sleepbezig */
-  sM(e, t);      /* Verwerk de huidige positie direct */
+  sDr[t] = true;
+  sM(e, t);
 }
 
-/* Verwerk slepen (bewegen van vinger/muis op een strip) */
 function sM(e, t) {
-  if (!sDr[t]) return; /* Niet aan het slepen? Niets te doen */
+  if (!sDr[t]) return;
   var el    = document.getElementById(t === 'p' ? 'pitchS' : 'modS');
-  var r     = el.getBoundingClientRect(); /* Positie en afmetingen van de strip */
-  var cy    = e.touches ? e.touches[0].clientY : e.clientY; /* Huidige Y-positie */
-  var ratio = Math.max(0, Math.min(1, (r.bottom - cy) / r.height)); /* 0=onderaan, 1=bovenaan */
+  var r     = el.getBoundingClientRect();
+  var cy    = e.touches ? e.touches[0].clientY : e.clientY;
+  var ratio = Math.max(0, Math.min(1, (r.bottom - cy) / r.height));
 
   if (t === 'p') {
-    /* Pitch Bend: 0=beneden (toon lager), 0.5=midden (normaal), 1=boven (toon hoger) */
-    pb = (ratio - .5) * 4; /* Omzetten naar -2 tot +2 octaven */
+    pb = (ratio - .5) * 4;
     document.getElementById('pitchF').style.height = (ratio * 100) + '%';
   } else {
-    /* Modulatie: sleept van 0% (geen effect) tot 100% (maximum effect) */
     document.getElementById('modF').style.height = (ratio * 100) + '%';
   }
 }
 
-/* Beëindig het slepen op een strip */
 function sE(e, t) {
   sDr[t] = false;
   if (t === 'p') {
-    /* Pitch Bend: veert terug naar het midden */
     pb = 0;
     document.getElementById('pitchF').style.height = '50%';
   }
-  /* Modulatie behoudt zijn positie (zoals de echte VersaKey werkt) */
 }
 
-/* Muis loslaten buiten een strip: stop slepen */
-document.addEventListener('mouseup', function() { sDr = {}; });
-
-/* Muisbewegen: verwerk strip-slepen ook als muis buiten het element is */
+document.addEventListener('mouseup',   function() { sDr = {}; });
 document.addEventListener('mousemove', function(e) {
   if (sDr.p) sM(e, 'p');
   if (sDr.m) sM(e, 'm');
 });
 
-/* ── COMPUTER TOETSENBORD MAPPING ────────────────────────────────
-   Speel noten via het computertoetsenbord (handig voor testen)
-   a=C, w=C#, s=D, e=D#, d=E, f=F, t=F#, g=G, y=G#, h=A, u=A#, j=B
-   k=C (hogere octaaf), etc. */
+/* ── COMPUTER TOETSENBORD MAPPING ────────────────────────────────*/
 var KBM = {
   'a':'C', 'w':'C#', 's':'D', 'e':'D#', 'd':'E', 'f':'F',
   't':'F#', 'g':'G', 'y':'G#', 'h':'A', 'u':'A#', 'j':'B',
   'k':'C2', 'o':'C#2', 'l':'D2', 'p':'D#2'
 };
-var kbP = {}; /* Bijhouden welke toetsen ingedrukt zijn (om herhaling te voorkomen) */
+var kbP = {};
 
-/* Toetsenbord indrukken */
 document.addEventListener('keydown', function(e) {
-  if (e.repeat) return; /* Automatische herhaling van OS negeren */
-  if (['SELECT','INPUT'].includes(e.target.tagName)) return; /* Niet in tekstvelden */
-  if (e.key === ' ') { e.preventDefault(); chSus(); return; } /* Spatie = sustain */
+  if (e.repeat) return;
+  if (['SELECT','INPUT'].includes(e.target.tagName)) return;
+  if (e.key === ' ') { e.preventDefault(); chSus(); return; }
 
   var no = KBM[e.key.toLowerCase()];
-  if (!no || kbP[e.key]) return; /* Niet in mapping of al ingedrukt */
+  if (!no || kbP[e.key]) return;
   kbP[e.key] = true;
 
-  var is2 = no.endsWith('2'); /* Is het een toets van het hogere octaaf? */
+  var is2 = no.endsWith('2');
   var nm  = is2 ? no.slice(0, -1) : no;
   var ni  = NN.indexOf(nm);
   if (ni < 0) return;
 
   var s  = MC[mdl].s + octOff * 12;
-  var bo = Math.floor(s / 12) - 1; /* Basisoctaaf */
-  var mn = (bo + (is2 ? 2 : 1)) * 12 + ni + tr; /* MIDI-nootnummer */
+  var bo = Math.floor(s / 12) - 1;
+  var mn = (bo + (is2 ? 2 : 1)) * 12 + ni + tr;
   if (mn >= 0 && mn <= 127) nOn(mn, vel, false);
 });
 
-/* Toetsenbord loslaten */
 document.addEventListener('keyup', function(e) {
   var no = KBM[e.key.toLowerCase()];
   if (!no) return;
@@ -1799,81 +1922,61 @@ document.addEventListener('keyup', function(e) {
   document.getElementById('noteTxt').textContent = '— speel een toets —';
 });
 
-/* ── MIDI VIA WEB MIDI API (USB-KABEL) ───────────────────────────
-   De Web MIDI API werkt in Chrome en Edge op Windows en Android.
-   De VersaKey moet verbonden zijn via USB-kabel. */
+/* ── MIDI VIA WEB MIDI API ───────────────────────────────────────*/
 
-/* Start de MIDI-verbinding op */
+/* Start MIDI verbinding */
 async function initMidi() {
-  var b = document.getElementById('midiBadge');
-  var l = document.getElementById('midiLbl');
+  var b    = document.getElementById('midiBadge');
+  var l    = document.getElementById('midiLbl');
   var hint = document.getElementById('usbHint');
   var hintDetail = document.getElementById('usbHintDetail');
 
-  /* Controleer of de browser de Web MIDI API ondersteunt */
   if (!navigator.requestMIDIAccess) {
-    b.className = 'midi-badge err';
+    b.className   = 'midi-badge err';
     l.textContent = 'MIDI: niet ondersteund';
     hint.classList.add('show');
-    hintDetail.textContent = '→ Gebruik Chrome of Edge (Firefox ondersteunt geen USB-MIDI).';
-    console.warn('[VersaKey] Web MIDI API niet beschikbaar in deze browser');
+    hintDetail.textContent = '→ Gebruik Chrome of Edge.';
     return;
   }
 
   try {
-    /* Vraag toegang tot MIDI-apparaten (sysex=false = geen systeemberichten nodig) */
     mAcc = await navigator.requestMIDIAccess({ sysex: false });
-    console.log('[VersaKey] MIDI toegang verkregen, zoek naar apparaten...');
-
-    /* Luister naar apparaatwijzigingen (USB in-/uitprikken) */
-    mAcc.onstatechange = function(e) {
-      console.log('[VersaKey] MIDI status gewijzigd:', e.port.name, e.port.state);
-      updMidi();
-    };
-
-    updMidi(); /* Verwerk de beschikbare apparaten direct */
-
+    mAcc.onstatechange = function(e) { updMidi(); };
+    updMidi();
   } catch (ex) {
-    /* Gebruiker heeft MIDI-toegang geweigerd */
-    b.className = 'midi-badge err';
+    b.className   = 'midi-badge err';
     l.textContent = 'MIDI: geweigerd';
     hint.classList.add('show');
     hintDetail.textContent = '→ Klik op "Toestaan" als de browser vraagt om MIDI-toegang.';
-    console.error('[VersaKey] MIDI toegang geweigerd:', ex);
   }
 }
 
-/* Vernieuw de lijst van MIDI-apparaten */
+/* Vernieuw lijst van MIDI-apparaten */
 function updMidi() {
   if (!mAcc) return;
 
-  /* Verzamel alle invoerapparaten */
   mIns = [];
   mAcc.inputs.forEach(function(i) { mIns.push(i); });
 
-  var b    = document.getElementById('midiBadge');
-  var l    = document.getElementById('midiLbl');
-  var bar  = document.getElementById('midiBar');
-  var sel  = document.getElementById('midiSel');
-  var hint = document.getElementById('usbHint');
+  var b   = document.getElementById('midiBadge');
+  var l   = document.getElementById('midiLbl');
+  var bar = document.getElementById('midiBar');
+  var sel = document.getElementById('midiSel');
+  var hint= document.getElementById('usbHint');
   var hintDetail = document.getElementById('usbHintDetail');
 
-  /* Stop alle bestaande MIDI-luisteraars */
   mIns.forEach(function(i) { i.onmidimessage = null; });
 
   if (mIns.length === 0) {
-    /* Geen MIDI-apparaten gevonden */
-    b.className  = 'midi-badge';
+    b.className   = 'midi-badge';
     l.textContent = 'MIDI: geen apparaat';
     bar.classList.remove('show');
     hint.classList.add('show');
     hintDetail.textContent = '→ Sluit je VersaKey aan via USB en probeer opnieuw.';
     actIn = null;
-    console.log('[VersaKey] Geen MIDI-apparaten gevonden');
     return;
   }
 
-  /* Apparaten gevonden: verberg de hint en vul de dropdown */
   hint.classList.remove('show');
   sel.innerHTML = '<option value="">— kies MIDI apparaat —</option>';
   mIns.forEach(function(inp, i) {
@@ -1884,25 +1987,21 @@ function updMidi() {
   });
   bar.classList.add('show');
 
-  /* Zoek automatisch naar een VersaKey of Devine apparaat */
   var idx = mIns.findIndex(function(d) {
     return d.name.toLowerCase().includes('versa') ||
            d.name.toLowerCase().includes('devine');
   });
-  if (idx < 0) idx = 0; /* Geen VersaKey gevonden? Gebruik het eerste apparaat */
+  if (idx < 0) idx = 0;
 
   sel.value = idx;
-  pickMidi(idx); /* Selecteer en verbind het apparaat */
-
-  console.log('[VersaKey] MIDI apparaten gevonden:', mIns.map(function(d) { return d.name; }));
+  pickMidi(idx);
 }
 
-/* Opnieuw scannen (bij klikken op de badge) */
+/* Opnieuw scannen */
 function scanMidi() { updMidi(); }
 
-/* Selecteer een MIDI-invoerapparaat */
+/* Selecteer MIDI invoerapparaat */
 function pickMidi(idx) {
-  /* Stop alle bestaande MIDI-luisteraars */
   mIns.forEach(function(i) { i.onmidimessage = null; });
   actIn = null;
   document.getElementById('midiInfo').textContent = '';
@@ -1912,76 +2011,98 @@ function pickMidi(idx) {
   var inp = mIns[parseInt(idx)];
   if (!inp) return;
 
-  /* Verbind het geselecteerde apparaat */
   actIn = inp;
-  inp.onmidimessage = onMidi; /* Stel de callback in voor inkomende MIDI-berichten */
+  inp.onmidimessage = onMidi;
 
-  /* Update de UI */
   document.getElementById('midiBadge').className = 'midi-badge ok';
   document.getElementById('midiLbl').textContent =
     inp.name.length > 22 ? inp.name.slice(0, 20) + '…' : inp.name;
   document.getElementById('midiInfo').textContent = 'verbonden';
   document.getElementById('devTxt').textContent   = inp.name;
 
-  console.log('[VersaKey] Verbonden met MIDI-apparaat:', inp.name);
+  console.log('[VersaKey] Verbonden met:', inp.name);
+  console.log('[VersaKey] Draai een encoder om te zien welk CC binnenkomt (kijk in console of CC Monitor)');
 }
 
-/* Verwerk inkomend MIDI-bericht van het hardware keyboard */
-function onMidi(ev) {
-  /* MIDI-berichten bestaan uit 2 of 3 bytes:
-     ev.data[0] = status byte (type + kanaal)
-     ev.data[1] = data byte 1 (nootnummer of CC-nummer)
-     ev.data[2] = data byte 2 (velocity of CC-waarde) */
-  var cmd = ev.data[0] & 0xF0; /* Status: bovenste 4 bits = berichttype */
-  var d1  = ev.data[1];         /* Nootnummer of CC-nummer */
-  var d2  = ev.data[2];         /* Velocity of waarde */
+/* ── MIDI BERICHT VERWERKEN ──────────────────────────────────────
+   Dit is de kern van de encoder-routing.
+   Elk inkomend MIDI-bericht wordt hier verwerkt.
 
-  iA(); rA(); /* Zorg dat audio werkt */
+   HOE WERKT DE ENCODER ROUTING:
+   1. Bericht binnenkomt → cmd = type, d1 = CC-nummer, d2 = waarde
+   2. Als cmd = 0xB0 (Control Change): kijk in encMap of d1 bekend is
+   3. encMap[d1] geeft de encoder-index terug (0-7)
+   4. updEncoder() update de balk en het getal
+   5. updateCCSlot() update de debug-monitor
+
+   ALS EEN KNOP NIET REAGEERT:
+   - Kijk in de CC Monitor welk CC binnenkomt
+   - Klik op de CC-badge van het juiste blokje en draai de knop (MIDI Learn)
+*/
+function onMidi(ev) {
+  var cmd = ev.data[0] & 0xF0; /* Berichttype: bovenste 4 bits */
+  var d1  = ev.data[1];         /* CC-nummer of nootnummer */
+  var d2  = ev.data[2];         /* Waarde of velocity */
+
+  iA(); rA();
 
   if (cmd === 0x90 && d2 > 0) {
-    /* NOTE ON: noot ingedrukt */
-    var f = d1 + tr; /* Voeg transpositie toe */
-    if (f >= 0 && f <= 127) nOn(f, d2, true); /* Speel de noot met hardware-vlag */
+    /* NOTE ON */
+    var f = d1 + tr;
+    if (f >= 0 && f <= 127) nOn(f, d2, true);
 
   } else if (cmd === 0x80 || (cmd === 0x90 && d2 === 0)) {
-    /* NOTE OFF: noot losgelaten (0x80 of Note On met velocity 0) */
+    /* NOTE OFF */
     nOf(d1 + tr);
     document.getElementById('noteTxt').textContent = '— speel een toets —';
 
   } else if (cmd === 0xB0) {
-    /* CONTROL CHANGE: een knop/slider/pedaal is bewogen
-       d1 = CC-nummer, d2 = nieuwe waarde (0-127) */
+    /* CONTROL CHANGE — d1 = CC-nummer, d2 = waarde */
 
-    /* ── MIDI LEARN CHECK (v2.1) ─────────────────────────────────
-       Als er een encoder in learn-modus staat, koppel dit CC-nummer
-       aan die encoder en stop de learn-sessie */
+    /* Log ALTIJD elk CC-bericht zodat je kunt debuggen */
+    console.log('[VersaKey] CC binnenkomst: CC' + d1 + ' = ' + d2 +
+      (encMap[d1] !== undefined ? ' → encoder R' + (encMap[d1]+1) + ' (' + ENC_DEF[encMap[d1]].n + ')' : ' (niet gekoppeld)'));
+
+    /* ── MIDI LEARN CHECK ─────────────────────────────────────────
+       Als er een encoder in learn-modus staat: koppel dit CC-nummer */
     if (encLearn !== null && d2 > 0) {
-      /* d2 > 0: negeer "nul"-berichten die soms als eerste binnenkomen */
-      finishLearn(d1); /* Koppel het ontvangen CC-nummer aan de encoder */
+      finishLearn(d1);
+      updateCCSlot(encLearn !== null ? encLearn : -1, d1, d2);
       flash();
-      return; /* Verwerk dit bericht niet als normaal CC */
+      return;
     }
 
-    /* ── ENCODER ROUTING (v2.1) ──────────────────────────────────
-       Kijk of dit CC-nummer hoort bij een van de 8 encoders.
-       encMap[d1] geeft de encoder-index terug, of undefined als niet bekend */
-    if (encMap[d1] !== undefined) {
-      updEncoder(encMap[d1], d2); /* Update de balk en waarde van de juiste encoder */
+    /* ── ENCODER ROUTING ──────────────────────────────────────────
+       Zoek op welke encoder bij dit CC-nummer hoort.
+       encMap is een object: {74: 0, 71: 1, 21: 2, ...}
+       encMap[d1] geeft de encoder-index (0-7) of undefined */
+    var encIdx = encMap[d1]; /* Zoek de encoder-index op */
 
-      /* Speciale behandeling als het de volume-encoder (R8 = CC7) is */
-      if (d1 === 7) {
-        vol = d2 / 127;                /* Sla het nieuwe volume op */
-        if (mG) mG.gain.value = vol;   /* Pas het audio-volume direct aan */
+    if (encIdx !== undefined) {
+      /* CC-nummer is bekend → update de juiste encoder-balk */
+      updEncoder(encIdx, d2);        /* Update balk + getal */
+      updateCCSlot(encIdx, d1, d2);  /* Update debug-monitor */
+
+      /* Speciale behandeling voor volume-encoder (CC7 = R8) */
+      if (d1 === ENC_DEF[7].cc) {  /* CC7 is de volume-encoder */
+        vol = d2 / 127;
+        if (mG) mG.gain.value = vol;
         var vPct = Math.round(d2 / 127 * 100);
-        document.getElementById('volV').textContent = vPct; /* Update de topbar ook */
+        document.getElementById('volV').textContent = vPct;
       }
+
       flash();
-      return; /* Encoder verwerkt, ga niet verder */
+      return;
     }
 
-    /* ── VASTE CC-NUMMERS die niet via encoder-map lopen ─────────*/
+    /* ── ONBEKEND CC-NUMMER ───────────────────────────────────────
+       Dit CC is niet gekoppeld aan een encoder.
+       Toon het toch in de debug-monitor zodat de gebruiker het kan leren. */
+    updateCCSlot(-1, d1, d2); /* -1 = geen slot, toon alleen in live-tekst */
+
+    /* Vaste CC-nummers die altijd werken ongeacht de encoder-map */
     if (d1 === 64) {
-      /* CC64 = Sustain pedaal: >= 64 is aan, < 64 is uit */
+      /* CC64 = Sustain pedaal */
       sus = d2 >= 64;
       document.getElementById('susBtn').classList.toggle('on', sus);
       if (!sus) {
@@ -1989,10 +2110,10 @@ function onMidi(ev) {
         susH = {};
       }
     } else if (d1 === 1) {
-      /* CC1 = Modulatiewiel: update de Mod-strip visueel */
+      /* CC1 = Modulatiewiel → update Mod-strip */
       document.getElementById('modF').style.height = (d2 / 127 * 100) + '%';
     } else if (d1 === 7) {
-      /* CC7 = Volume (fallback als niet in encMap): update het volume */
+      /* CC7 = Volume (fallback als niet in encMap) */
       var v = Math.round(d2 / 127 * 100);
       vol = v / 100;
       if (mG) mG.gain.value = vol;
@@ -2000,47 +2121,75 @@ function onMidi(ev) {
     }
 
   } else if (cmd === 0xE0) {
-    /* PITCH BEND: toonhoogte buigen
-       Twee bytes samen vormen een 14-bits waarde: -8192 (laag) tot +8191 (hoog) */
+    /* PITCH BEND */
     var bend = ((d2 << 7) | d1) - 8192;
-    pb = (bend / 8192) * 2; /* Omzetten naar -2 tot +2 octaven */
+    pb = (bend / 8192) * 2;
     document.getElementById('pitchF').style.height = (((bend + 8192) / 16384) * 100) + '%';
   }
 
-  flash(); /* Laat het LED knipperen */
+  flash();
 }
 
-/* ── LED LAMPJE ─────────────────────────────────────────────────
-   Knippert groen bij elke MIDI-activiteit */
-var ledT; /* Timer voor het uitschakelen van het LED */
+/* ── LED KNIPPEREN ───────────────────────────────────────────────*/
+var ledT;
 function flash() {
   var l = document.getElementById('led');
-  l.classList.add('f');                                  /* Zet groen LED aan */
-  clearTimeout(ledT);                                    /* Reset de timer */
-  ledT = setTimeout(function() { l.classList.remove('f'); }, 120); /* Uit na 120ms */
+  l.classList.add('f');
+  clearTimeout(ledT);
+  ledT = setTimeout(function() { l.classList.remove('f'); }, 120);
 }
 
-/* ── SERVICE WORKER (PWA offline) ───────────────────────────────
-   Registreer de service worker zodat de app ook offline werkt */
+/* ── SERVICE WORKER (PWA offline) ───────────────────────────────*/
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
     navigator.serviceWorker.register('sw.js')
-      .then(function(reg) { console.log('[VersaKey] Service Worker geregistreerd:', reg.scope); })
-      .catch(function(err) { console.warn('[VersaKey] Service Worker mislukt:', err); });
+      .then(function(reg) { console.log('[VersaKey] SW geregistreerd:', reg.scope); })
+      .catch(function(err) { console.warn('[VersaKey] SW mislukt:', err); });
   });
 }
 
 /* ── INITIALISATIE ───────────────────────────────────────────────
-   Start de app op als de pagina geladen is */
+   Volgorde is belangrijk:
+   1. initEncMap()    → bouw de CC→encoder koppelingsmap
+   2. buildCCSlots()  → maak de 8 debug-monitor blokjes
+   3. buildEncoders() → maak de 8 encoder-balken
+   4. buildPads()     → maak de drum-pads
+   5. setModel(49)    → laad VK-49 model (bouwt ook de piano)
+   6. applyZoom()     → pas opgeslagen zoom-niveau toe
+   7. initMidi()      → start USB-MIDI verbinding */
 initEncMap();    /* Bouw de standaard CC→encoder koppelingsmap */
-buildEncoders(); /* Maak de 8 encoder-blokken zichtbaar */
+buildCCSlots();  /* v2.3: maak de debug-monitor blokjes */
+buildEncoders(); /* Maak de 8 encoder-balken zichtbaar */
 buildPads();     /* Maak de drum-pads */
-setModel(49);    /* Laad het standaard VK-49 model (bouwt ook de piano) */
-applyZoom();     /* Pas het opgeslagen zoom-niveau toe (herbouwt piano met juiste grootte) */
-initMidi();      /* Start de USB-MIDI verbinding */
+setModel(49);    /* Laad VK-49 model */
+applyZoom();     /* Pas opgeslagen zoom-niveau toe */
+initMidi();      /* Start USB-MIDI verbinding */
 
-console.log('[VersaKey] App gestart — v' + APP_VERSION + ' | Verbind je VersaKey via USB');
+/* Verborgen knop om debug-balk terug te tonen (wordt zichtbaar na "Verberg") */
+document.getElementById('showDebugBtn').style.display = 'none'; /* Start verborgen */
+
+console.log('[VersaKey] App gestart v' + APP_VERSION + ' — encoder CC-map:', JSON.stringify(encMap));
 </script>
+
+<!-- Kleine knop om de CC Monitor terug te tonen als die verborgen is -->
+<!-- Zit verstopt in de encoder-balk, wordt zichtbaar na "Verberg" klikken -->
+<style>
+  #showDebugBtn { display: none; }
+</style>
+<script>
+  /* Voeg de "Toon CC Monitor" knop toe aan de encoder-balk na het laden */
+  (function() {
+    var encBar = document.querySelector('.enc-bar');
+    var btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.id        = 'showDebugBtn';
+    btn.textContent = '📊 CC';
+    btn.title     = 'Toon de CC Monitor balk terug';
+    btn.style.cssText = 'flex-shrink:0;font-size:10px;padding:2px 6px;display:none;';
+    btn.onclick   = function() { toggleDebug(); };
+    encBar.insertBefore(btn, encBar.querySelector('.enc-learn-status'));
+  })();
+</script>
+
 </body>
 </html>
-     

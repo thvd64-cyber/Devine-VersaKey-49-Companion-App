@@ -1,11 +1,18 @@
 <!DOCTYPE html>
 <!-- ============================================================
      Devine VersaKey — MIDI Controller App
-     VERSIE : 2.1.0
+     VERSIE : 2.2.0
      DATUM  : 2026-04-05
      DOEL   : PWA voor Windows, Android, Chrome/Edge via USB-MIDI
 
-     CHANGELOG v2.1.0 (t.o.v. v2.0.0):
+     CHANGELOG v2.2.0 (t.o.v. v2.1.0):
+     - NIEUW: Zoom-knop voor toetsen en strips (−  1×  2×  knop in statusbalk)
+       * 3 vaste zoomniveaus: 1× (normaal), 1.5× (middelgroot), 2× (groot)
+       * Zoomt alleen de piano-toetsen én de 2 strips — rest van de app ongewijzigd
+       * Piano herbouwt automatisch bij zoom-wijziging
+       * Strips schalen mee via CSS custom property --zoom
+       * Zoom-niveau opgeslagen in localStorage zodat het onthouden wordt
+     - Versie 2.2.0
      - NIEUW: Rotary Encoder sectie toegevoegd (R1-R8)
        * Voorstel A: 8 live CC-meter balken die bewegen bij draaien
        * Voorstel B: MIDI Learn modus per knop
@@ -60,9 +67,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 
 <style>
-/* ── CSS VARIABELEN ─────────────────────────────────────────────
-   Alle kleuren en afmetingen op één plek, makkelijk aan te passen */
+/* ── ZOOM INSTELLING ─────────────────────────────────────────────
+   --zoom wordt via JavaScript gezet op 1, 1.5 of 2.
+   De piano en strips gebruiken deze waarde om te schalen.
+   De rest van de app (topbar, pads, encoders) blijft ongewijzigd. */
 :root {
+  --zoom: 1;                /* Standaard zoom: normale grootte */
+
   --bg:       #f0ebe0;  /* Achtergrondkleur: warm ivoor */
   --surface:  #e8e2d4;  /* Paneel-achtergrond: iets donkerder ivoor */
   --surface2: #ddd8cc;  /* Tweede laag paneel */
@@ -616,16 +627,18 @@ body {
 
 /* Eén strip (de glijbalk) */
 .strip {
-  width: 20px;
-  height: 165px;
+  /* Breedte en hoogte schalen met --zoom: 20px × zoom, 165px × zoom */
+  width:  calc(20px * var(--zoom));
+  height: calc(165px * var(--zoom));
   background: var(--surface2);
   border: 1px solid var(--border);
   border-radius: 10px;
   position: relative;
   overflow: hidden;
-  cursor: ns-resize;                /* Cursor verandert in pijl omhoog/omlaag */
+  cursor: ns-resize;
   box-shadow: inset 0 2px 5px rgba(0,0,0,.05);
   touch-action: none;
+  transition: width .2s, height .2s; /* Vloeiende overgang bij zoom-wijziging */
 }
 
 /* De gekleurde vulling in de strip (hoe ver je hem hebt bewogen) */
@@ -700,7 +713,7 @@ body {
   </div>
 
   <!-- Versie-badge naast logo -->
-  <span class="version-badge">v2.1</span>
+  <span class="version-badge">v2.2</span>
 
   <div class="sep"></div>
 
@@ -896,6 +909,21 @@ body {
   <span class="note-txt" id="noteTxt">— speel een toets —</span>
   <!-- LED-lampje dat knippert bij MIDI-activiteit -->
   <div class="led" id="led"></div>
+
+  <!-- ── ZOOM KNOPPEN (v2.2) ────────────────────────────────────
+       Vergroot/verklein alleen de piano-toetsen en de 2 strips.
+       3 niveaus: 1× (normaal) · 1.5× (middelgroot) · 2× (groot) -->
+  <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+    <!-- Kleine label -->
+    <span style="font-size:9px;color:var(--muted);font-family:'Space Mono',monospace;">ZOOM</span>
+    <!-- Knop: zoom uitzoomen (één niveau terug) -->
+    <button class="btn" id="zoomOut" onclick="chZoom(-1)" style="padding:2px 7px;font-size:11px;" title="Kleiner">−</button>
+    <!-- Huidig zoom-niveau als tekst (bijv. "1×") -->
+    <span class="val" id="zoomLbl" style="min-width:28px;font-size:11px;">1×</span>
+    <!-- Knop: zoom inzoomen (één niveau groter) -->
+    <button class="btn" id="zoomIn"  onclick="chZoom(+1)" style="padding:2px 7px;font-size:11px;" title="Groter">+</button>
+  </div>
+
   <!-- Naam van het verbonden MIDI-apparaat (rechts) -->
   <span class="note-txt" id="devTxt" style="font-size:10px;"></span>
 </div>
@@ -906,7 +934,7 @@ body {
 <script>
 /* ── VERSIE INFO ─────────────────────────────────────────────────
    Sla de versie op zodat we hem kunnen loggen en vergelijken */
-var APP_VERSION = '2.1.0';
+var APP_VERSION = '2.2.0';
 console.log('[VersaKey] app versie', APP_VERSION, '| USB-MIDI modus voor Chrome/Windows/Android');
 
 /* ── NOOT NAMEN EN PIANO LAYOUT ──────────────────────────────────
@@ -927,8 +955,22 @@ var MC = {
 
 /* ── AFMETINGEN PIANO-TOETSEN ────────────────────────────────────
    WW = breedte witte toets, WH = hoogte witte toets
-   BW = breedte zwarte toets, BH = hoogte zwarte toets */
+   BW = breedte zwarte toets, BH = hoogte zwarte toets
+   Dit zijn de BASIS-afmetingen bij zoom 1×.
+   Bij zoom 1.5× worden alle afmetingen × 1.5, bij 2× × 2. */
 var WW=36, WH=170, BW=22, BH=105;
+
+/* ── ZOOM INSTELLING (v2.2) ──────────────────────────────────────
+   ZOOM_LEVELS = de drie beschikbare zoomniveaus
+   zoomIdx     = welk niveau nu actief is (0=1×, 1=1.5×, 2=2×)
+   Opgeslagen in localStorage zodat de voorkeur onthouden wordt. */
+var ZOOM_LEVELS = [1, 1.5, 2]; /* 1× normaal · 1.5× middelgroot · 2× groot */
+var zoomIdx = (function() {
+  /* Lees het opgeslagen zoom-niveau uit localStorage (0, 1 of 2) */
+  var saved = parseInt(localStorage.getItem('vk-zoom') || '0');
+  /* Zorg dat het een geldig getal is (0-2), anders gebruik 0 */
+  return (saved >= 0 && saved <= 2) ? saved : 0;
+})();
 
 /* ── TOESTANDSVARIABELEN ─────────────────────────────────────────
    Sla de huidige toestand van alle instellingen op */
@@ -1116,13 +1158,70 @@ function kviz(mn, on) {
   if (e) e.classList.toggle('on', on);
 }
 
+/* ── ZOOM FUNCTIES (v2.2) ────────────────────────────────────────*/
+
+/* Pas de zoom toe op de piano en strips.
+   Berekent de echte toetsafmetingen (basis × zoom) en past de
+   CSS custom property --zoom aan zodat de strips meeschalen. */
+function applyZoom() {
+  var z = ZOOM_LEVELS[zoomIdx]; /* Het huidige zoom-getal (1, 1.5 of 2) */
+
+  /* Bereken de toetsafmetingen op basis van de zoom-factor */
+  var ww = Math.round(WW * z); /* Breedte witte toets: 36 × zoom */
+  var wh = Math.round(WH * z); /* Hoogte witte toets: 170 × zoom */
+  var bw = Math.round(BW * z); /* Breedte zwarte toets: 22 × zoom */
+  var bh = Math.round(BH * z); /* Hoogte zwarte toets: 105 × zoom */
+
+  /* Stel de CSS --zoom variabele in zodat de strips meeschalen */
+  document.documentElement.style.setProperty('--zoom', z);
+
+  /* Update de zoom-label tekst in de statusbalk */
+  var lbl = document.getElementById('zoomLbl');
+  if (lbl) lbl.textContent = z === 1 ? '1×' : z === 1.5 ? '1.5×' : '2×';
+
+  /* Grijs de − knop uit als we al op het kleinste niveau zitten */
+  var btnOut = document.getElementById('zoomOut');
+  if (btnOut) btnOut.disabled = (zoomIdx === 0);
+
+  /* Grijs de + knop uit als we al op het grootste niveau zitten */
+  var btnIn = document.getElementById('zoomIn');
+  if (btnIn) btnIn.disabled = (zoomIdx === ZOOM_LEVELS.length - 1);
+
+  /* Sla het zoom-niveau op in localStorage voor de volgende sessie */
+  localStorage.setItem('vk-zoom', zoomIdx);
+
+  /* Herbouw de piano met de nieuwe afmetingen */
+  var c = MC[mdl];
+  var s = c.s + octOff * 12;
+  buildKB(c.n, s, ww, wh, bw, bh); /* Geef de nieuwe afmetingen mee */
+
+  console.log('[VersaKey] Zoom gewijzigd naar', z + '×',
+    '| toets:', ww + '×' + wh + 'px');
+}
+
+/* Verander het zoom-niveau met d stapjes (+1 of -1).
+   Begrens zodat we niet buiten de 3 niveaus gaan. */
+function chZoom(d) {
+  zoomIdx = Math.max(0, Math.min(ZOOM_LEVELS.length - 1, zoomIdx + d));
+  applyZoom(); /* Pas de nieuwe zoom meteen toe */
+}
+
 /* ── PIANO BOUWEN ────────────────────────────────────────────────
    Bouw het pianotoetsenbord in HTML op basis van het model.
-   n = aantal toetsen, s = startende MIDI-nootnummer */
-function buildKB(n, s) {
+   n = aantal toetsen, s = startende MIDI-nootnummer
+   ww/wh/bw/bh = optionele afmetingen; als niet opgegeven worden
+   ze berekend uit de basis-afmetingen × de huidige zoom-factor. */
+function buildKB(n, s, ww, wh, bw, bh) {
+  /* Bereken de afmetingen als ze niet meegegeven zijn */
+  var z = ZOOM_LEVELS[zoomIdx];          /* Huidige zoom-factor (1 / 1.5 / 2) */
+  ww = ww || Math.round(WW * z);        /* Breedte witte toets (bijv. 36, 54, 72) */
+  wh = wh || Math.round(WH * z);        /* Hoogte witte toets (bijv. 170, 255, 340) */
+  bw = bw || Math.round(BW * z);        /* Breedte zwarte toets */
+  bh = bh || Math.round(BH * z);        /* Hoogte zwarte toets */
+
   var kb = document.getElementById('kb');
-  kb.innerHTML = '';    /* Verwijder het oude toetsenbord */
-  kb.style.height = WH + 'px'; /* Stel hoogte in */
+  kb.innerHTML = '';                     /* Verwijder het oude toetsenbord */
+  kb.style.height = wh + 'px';          /* Hoogte op basis van zoom */
 
   var wc = 0; /* Teller voor witte toetsen (bepaalt de totale breedte) */
   var ks = []; /* Array met informatie over elke toets */
@@ -1136,8 +1235,8 @@ function buildKB(n, s) {
     ks.push({ m: m, ni: ni, ib: ib });
   }
 
-  /* Stel de totale breedte van het toetsenbord in */
-  kb.style.width = (wc * WW) + 'px';
+  /* Stel de totale breedte van het toetsenbord in (zoom meerekenen) */
+  kb.style.width = (wc * ww) + 'px';
 
   var wx = 0; /* Horizontale positie van de volgende witte toets */
 
@@ -1147,9 +1246,9 @@ function buildKB(n, s) {
     el.dataset.m = k.m; /* Sla het MIDI-nootnummer op als data-attribuut */
 
     if (!k.ib) {
-      /* WITTE TOETS */
+      /* WITTE TOETS — gebruik de gezoomde afmetingen */
       el.className = 'wk';
-      el.style.cssText = 'left:' + wx + 'px;width:' + WW + 'px;height:' + WH + 'px;';
+      el.style.cssText = 'left:' + wx + 'px;width:' + ww + 'px;height:' + wh + 'px;';
 
       /* Voeg "C2", "C3" labels toe aan C-toetsen */
       if (NN[k.ni] === 'C') {
@@ -1158,13 +1257,13 @@ function buildKB(n, s) {
         lb.textContent = 'C' + (Math.floor(k.m / 12) - 1);
         el.appendChild(lb);
       }
-      wx += WW; /* Ga naar de positie van de volgende witte toets */
+      wx += ww; /* Ga naar de positie van de volgende witte toets */
 
     } else {
-      /* ZWARTE TOETS */
+      /* ZWARTE TOETS — gebruik de gezoomde afmetingen */
       el.className = 'bk';
       /* Positioneer iets voor de volgende witte toets (overlap) */
-      el.style.cssText = 'left:' + (wx - BW * .6) + 'px;width:' + BW + 'px;height:' + BH + 'px;top:0;';
+      el.style.cssText = 'left:' + (wx - bw * .6) + 'px;width:' + bw + 'px;height:' + bh + 'px;top:0;';
     }
 
     /* Aanraak-events voor touchschermen */
@@ -1174,7 +1273,7 @@ function buildKB(n, s) {
     /* Muis-events voor desktop */
     el.addEventListener('mousedown',  function(e) { e.preventDefault(); kDn(k.m); });
     el.addEventListener('mouseup',    function()  { kUp(k.m); });
-    el.addEventListener('mouseleave', function()  { if (aN[k.m + tr]) kUp(k.m); }); /* Loslaten bij weggaan */
+    el.addEventListener('mouseleave', function()  { if (aN[k.m + tr]) kUp(k.m); });
 
     kb.appendChild(el); /* Voeg de toets toe aan het toetsenbord */
   });
@@ -1933,13 +2032,15 @@ if ('serviceWorker' in navigator) {
 
 /* ── INITIALISATIE ───────────────────────────────────────────────
    Start de app op als de pagina geladen is */
-initEncMap();   /* Bouw de standaard CC→encoder koppelingsmap */
+initEncMap();    /* Bouw de standaard CC→encoder koppelingsmap */
 buildEncoders(); /* Maak de 8 encoder-blokken zichtbaar */
-buildPads();    /* Maak de drum-pads */
-setModel(49);  /* Laad het standaard VK-49 model */
-initMidi();    /* Start de USB-MIDI verbinding */
+buildPads();     /* Maak de drum-pads */
+setModel(49);    /* Laad het standaard VK-49 model (bouwt ook de piano) */
+applyZoom();     /* Pas het opgeslagen zoom-niveau toe (herbouwt piano met juiste grootte) */
+initMidi();      /* Start de USB-MIDI verbinding */
 
 console.log('[VersaKey] App gestart — v' + APP_VERSION + ' | Verbind je VersaKey via USB');
 </script>
 </body>
 </html>
+     

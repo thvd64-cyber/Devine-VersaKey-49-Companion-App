@@ -1,951 +1,468 @@
-     <!DOCTYPE html>
+<!DOCTYPE html>
 <!-- ============================================================
      Devine VersaKey — MIDI Controller App
-     VERSIE : 2.3.0
-     DATUM  : 2026-04-05
-     DOEL   : PWA voor Windows, Android, Chrome/Edge via USB-MIDI
+     VERSIE : 2.4.0
+     DATUM  : 2026-04-06
 
-     CHANGELOG v2.3.0 (t.o.v. v2.2.0):
-     ── BUGFIX ENCODERS ──────────────────────────────────────────
-     - NIEUW: CC Debug Monitor balk (tussen encoders en pads)
-       * Toont LIVE welk CC-nummer binnenkomt als je een knop draait
-       * Toont de waarde (0-127) en encoder-naam als die gekoppeld is
-       * Kan verborgen worden met "Verberg" knop
-       * Essentieel om te zien welke CC-nummers jouw VersaKey stuurt
-     - NIEUW: Console.log uitgebreid — elk CC-bericht wordt gelogd
-       * Open Chrome → F12 → Console om live mee te kijken
-     - FIX: encMap lookup verbeterd met extra null-check
-     - FIX: Getal (0-127) nu altijd zichtbaar in elk encoder-blokje
-       * Groter lettertype (10px i.p.v. 9px) en duidelijkere kleur
-     - NIEUW: Handleiding-tooltip voor "Reset Learn" en CC-badge
-       * Klik op ❓ knop naast Encoders label = uitleg popup
-       * Popup legt uit: wat is MIDI Learn, wat doet Reset Learn
-     - FIX: Versie-badge bijgewerkt naar v2.3
-
-     CHANGELOG v2.2.0 (t.o.v. v2.1.0):
-     - Zoom-knop voor toetsen en strips toegevoegd
-     - 3 vaste zoomniveaus: 1× / 1.5× / 2×
-     - Zoom-niveau opgeslagen in localStorage
-
-     CHANGELOG v2.1.0 (t.o.v. v2.0.0):
-     - Rotary Encoder sectie toegevoegd (R1-R8)
-     - Voorstel A: 8 live CC-meter balken
-     - Voorstel B: MIDI Learn modus per encoder
-
-     CHANGELOG v2.0.0 (t.o.v. v1.x):
-     - AudioKit J6 sectie verwijderd
-     - USB-MIDI verbinding verbeterd voor Chrome op Windows/Android
+     CHANGELOG v2.4.0 (t.o.v. v2.3.0):
+     ── CORRECTE FABRIEKS CC-NUMMERS (uit Appendix H handboek) ───
+     - R1 = CC131 - Program Change             — was CC74-Sound Controller-filter cutoff point 
+     - R2 = CC7   - Volume                     — was CC71-Sound Controller-Notes fade out
+     - R3 = CC92  - Effect 2 Amount (Tremelo)  — was CC21-Undefined
+     - R4 = CC81  - General purpose            — was CC18-general purpose-performance modulation
+     - R5 = CC91  - Reverb Amount              — was CC73-Envelope Attack
+     - R6 = CC67  - Soft Pedal On/Off Switch   — was CC72-Envelope Decay
+     - R7 = CC86  - Undefined                  — was CC93-Chorus
+     - R8 = CC93  - Chorus Amount              — was CC7-instrument volume-output volume
+     ── DUBBELE BANK R1-R8 / R9-R16 ─────────────────────────────
+     - Encoder sectie toont nu 8 blokjes per bank (R1-R8 of R9-R16)
+     - Bank-wissel knop "Bank 1-8 / 9-16" in de encoder-balk
+     - R9-R16 beginnen zonder standaard CC (vrij te programmeren)
+     - Beide banken onafhankelijk leerbaar via MIDI Learn
+     ── PROGRAMMEER WIZARD ───────────────────────────────────────
+     - Knop "🎛️ Programmeer R1-R8" start een stap-voor-stap wizard
+     - Wizard loopt door alle 8 encoders automatisch
+     - "Volgende encoder" knop na elke succesvolle koppeling
+     - Resultaat wordt de nieuwe standaard voor "↺ Reset Learn"
+     - Aparte wizard voor R9-R16 (zelfde principe)
+     ── OVERIG ───────────────────────────────────────────────────
+     - Naam velden voor R9-R16 vrij aanpasbaar via tekstveld
+     - sw.js cache versakey-v5 → versakey-v6
      ============================================================ -->
 <html lang="nl">
 <head>
-
-<!-- Vertel de browser welke tekens we gebruiken (altijd UTF-8) -->
 <meta charset="UTF-8">
-
-<!-- Zorg dat de app goed past op telefoons en tablets -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-<!-- App-icoon instellingen voor iOS -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="VersaKey">
-
-<!-- Kleur adresbalk op Android Chrome -->
 <meta name="theme-color" content="#f0ebe0">
-
-<!-- Beschrijving voor zoekmachines en PWA stores -->
-<meta name="description" content="Devine VersaKey Series MIDI Keyboard App — VK-25, VK-49, VK-61, VK-88 | USB-MIDI voor Windows &amp; Android">
-
-<!-- Paginatitel in de browsertab -->
-<title>Devine VersaKey — MIDI Controller v2.3</title>
-
-<!-- PWA manifest: maakt de app installeerbaar -->
+<meta name="description" content="Devine VersaKey Series MIDI Controller App — USB-MIDI voor Windows &amp; Android">
+<title>Devine VersaKey — MIDI Controller v2.4</title>
 <link rel="manifest" href="manifest.json">
-
-<!-- App-icoon voor Apple apparaten -->
 <link rel="apple-touch-icon" href="icon-192.svg">
-
-<!-- Google Fonts: Space Mono voor code-stijl tekst, Outfit voor leesbare tekst -->
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
 
 <style>
-/* ── ZOOM INSTELLING ─────────────────────────────────────────────
-   --zoom wordt via JavaScript gezet op 1, 1.5 of 2.
-   Alleen de piano en strips gebruiken deze waarde om te schalen. */
 :root {
-  --zoom: 1;                /* Standaard zoom: normale grootte */
-
-  --bg:       #f0ebe0;  /* Achtergrondkleur: warm ivoor */
-  --surface:  #e8e2d4;  /* Paneel-achtergrond: iets donkerder ivoor */
-  --surface2: #ddd8cc;  /* Tweede laag paneel */
-  --surface3: #ccc6b8;  /* Derde laag (sliders, etc.) */
-  --accent:   #8b6f3a;  /* Hoofdkleur: warme bruine tint */
-  --accent2:  #b8935a;  /* Lichtere accentkleur */
-  --text:     #2a2520;  /* Hoofdtekstkleur: donkerbruin */
-  --muted:    #7a7060;  /* Grijze tekst voor labels */
-  --dim:      #b0a898;  /* Nog grijzer voor niet-actieve elementen */
-  --border:   rgba(139,111,58,.18); /* Subtiele rand */
-  --wk:       #faf8f3;  /* Kleur witte piano-toets */
-  --wkh:      #fff9ee;  /* Witte toets bij hover */
-  --wka:      #BA7517;  /* Witte toets ingedrukt (oranje-goud) */
-  --bk:       #1c1a18;  /* Kleur zwarte piano-toets */
-  --bka:      #854F0B;  /* Zwarte toets ingedrukt */
-  --ok:       #2d7a3a;  /* Groen = alles goed (MIDI verbonden) */
-  --err:      #a33030;  /* Rood = fout (geen MIDI) */
-  --debug:    #1a3a5c;  /* Donkerblauw voor debug monitor balk */
+  --zoom: 1;
+  --bg:       #f0ebe0;
+  --surface:  #e8e2d4;
+  --surface2: #ddd8cc;
+  --surface3: #ccc6b8;
+  --accent:   #8b6f3a;
+  --accent2:  #b8935a;
+  --text:     #2a2520;
+  --muted:    #7a7060;
+  --dim:      #b0a898;
+  --border:   rgba(139,111,58,.18);
+  --wk:       #faf8f3;
+  --wkh:      #fff9ee;
+  --wka:      #BA7517;
+  --bk:       #1c1a18;
+  --bka:      #854F0B;
+  --ok:       #2d7a3a;
+  --err:      #a33030;
+  --debug:    #1a3a5c;
+  --bank2:    #2a4a2a; /* Groene tint voor bank 2 */
 }
 
-/* Alle elementen: geen ongewenste marges, geen tekstselectie */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: none;
-  user-select: none;
-}
+* { box-sizing:border-box; margin:0; padding:0;
+    -webkit-tap-highlight-color:transparent; touch-action:none; user-select:none; }
 
-/* Hoofd-lay-out: alles van boven naar beneden gestapeld */
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Outfit', sans-serif;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
+body { background:var(--bg); color:var(--text); font-family:'Outfit',sans-serif;
+       height:100vh; display:flex; flex-direction:column; overflow:hidden; }
 
 /* ── TOPBAR ─────────────────────────────────────────────────────*/
-.topbar {
+.topbar { display:flex; align-items:center; gap:8px; padding:10px 16px;
+          background:var(--surface); border-bottom:1px solid var(--border);
+          flex-shrink:0; flex-wrap:wrap; }
+.logo   { display:flex; align-items:center; gap:9px; flex-shrink:0; }
+.logo-dot { width:28px; height:28px; background:var(--accent); border-radius:50%;
+            display:flex; align-items:center; justify-content:center; }
+.logo-dot::after { content:''; width:10px; height:10px; border-radius:50%; background:var(--bg); }
+.logo-text { font-family:'Space Mono',monospace; font-size:12px; font-weight:700;
+             color:var(--accent); letter-spacing:.07em; }
+.logo-sub  { font-size:10px; color:var(--muted); margin-top:1px; }
+.version-badge { font-family:'Space Mono',monospace; font-size:9px; color:var(--dim);
+                 padding:2px 6px; border:1px solid var(--border); border-radius:10px; flex-shrink:0; }
+.sep  { width:1px; height:20px; background:var(--border); flex-shrink:0; }
+.lbl  { font-size:10px; color:var(--muted); letter-spacing:.05em; text-transform:uppercase;
+        font-family:'Space Mono',monospace; white-space:nowrap; }
+.val  { font-size:12px; color:var(--accent); font-family:'Space Mono',monospace;
+        min-width:26px; text-align:center; }
+.btn  { padding:4px 9px; border-radius:6px; border:1px solid var(--border);
+        background:var(--bg); color:var(--text); font-size:11px; cursor:pointer;
+        transition:all .12s; white-space:nowrap; font-family:'Outfit',sans-serif; }
+.btn:hover   { background:var(--surface2); border-color:var(--accent); }
+.btn:active  { transform:scale(.93); }
+.btn.on      { background:var(--accent); color:#fff; border-color:var(--accent); }
+.btn.mon     { background:rgba(139,111,58,.15); color:var(--accent); border-color:var(--accent); font-weight:600; }
+.btn:disabled{ opacity:.35; cursor:not-allowed; }
+.btn.bank2on { background:rgba(42,74,42,.15); color:var(--bank2); border-color:var(--bank2); font-weight:600; }
+.sel  { background:var(--bg); border:1px solid var(--border); color:var(--text);
+        padding:4px 9px; border-radius:6px; font-size:11px; font-family:'Outfit',sans-serif;
+        outline:none; cursor:pointer; max-width:148px; touch-action:auto; }
+.sel:focus { border-color:var(--accent); }
+.rng  { -webkit-appearance:none; height:3px; border-radius:2px; background:var(--surface3);
+        outline:none; width:72px; accent-color:var(--accent); }
+.rng::-webkit-slider-thumb { -webkit-appearance:none; width:14px; height:14px; border-radius:50%;
+                              background:var(--accent); cursor:pointer; border:2px solid var(--bg); }
+.midi-badge { display:flex; align-items:center; gap:5px; padding:4px 10px; border-radius:20px;
+              border:1px solid var(--border); background:var(--bg); font-size:10px;
+              font-family:'Space Mono',monospace; color:var(--muted); cursor:pointer;
+              white-space:nowrap; flex-shrink:0; }
+.midi-badge .dot { width:6px; height:6px; border-radius:50%; background:var(--dim);
+                   transition:background .3s; flex-shrink:0; }
+.midi-badge.ok   { color:var(--ok); }
+.midi-badge.ok .dot  { background:var(--ok); box-shadow:0 0 4px var(--ok); }
+.midi-badge.err  { color:var(--err); }
+.midi-badge.err .dot { background:var(--err); }
+
+/* ── USB HINT ────────────────────────────────────────────────────*/
+.usb-hint { display:none; align-items:center; gap:10px; padding:6px 16px;
+            background:rgba(163,48,48,.07); border-bottom:1px solid rgba(163,48,48,.2);
+            font-size:11px; color:var(--err); font-family:'Space Mono',monospace; }
+.usb-hint.show { display:flex; }
+
+/* ── CC DEBUG MONITOR ────────────────────────────────────────────*/
+.cc-debug { display:flex; align-items:center; gap:10px; padding:5px 14px;
+            background:rgba(26,58,92,.07); border-bottom:1px solid rgba(26,58,92,.15);
+            flex-shrink:0; flex-wrap:wrap; }
+.cc-debug.hidden { display:none; }
+.cc-debug-lbl { font-size:9px; font-family:'Space Mono',monospace; color:rgba(26,58,92,.7);
+                text-transform:uppercase; letter-spacing:.06em; flex-shrink:0; }
+.cc-slots { display:flex; gap:4px; flex:1; flex-wrap:wrap; }
+.cc-slot  { display:flex; flex-direction:column; align-items:center; padding:2px 5px;
+            background:rgba(26,58,92,.06); border:1px solid rgba(26,58,92,.12);
+            border-radius:4px; min-width:46px; transition:background .1s; }
+.cc-slot.active { background:rgba(26,58,92,.18); border-color:rgba(26,58,92,.4); }
+.cc-slot-lbl { font-size:8px; color:rgba(26,58,92,.6); font-family:'Space Mono',monospace; }
+.cc-slot-cc  { font-size:9px; color:var(--debug); font-family:'Space Mono',monospace; font-weight:700; }
+.cc-slot-val { font-size:8px; color:rgba(26,58,92,.7); font-family:'Space Mono',monospace; }
+.cc-live { font-size:11px; font-family:'Space Mono',monospace; color:var(--debug);
+           font-weight:700; flex-shrink:0; min-width:200px; }
+
+/* ── ENCODER SECTIE ──────────────────────────────────────────────*/
+.enc-bar  { display:flex; align-items:center; gap:8px; padding:7px 14px;
+            background:var(--surface); border-bottom:1px solid var(--border);
+            flex-shrink:0; flex-wrap:wrap; }
+
+/* Bank-indicator strip bovenaan encoder-balk */
+.enc-bank-strip {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  gap: 6px;
+  width: 100%;
+  margin-bottom: 2px;
   flex-shrink: 0;
-  flex-wrap: wrap;
 }
-
-/* Logo-blok: ronde stip + tekst */
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  flex-shrink: 0;
-}
-
-/* De oranje ronde stip in het logo */
-.logo-dot {
-  width: 28px;
-  height: 28px;
-  background: var(--accent);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Kleine witte stip binnenin de oranje stip */
-.logo-dot::after {
-  content: '';
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--bg);
-}
-
-/* "DEVINE" tekst in het logo */
-.logo-text {
-  font-family: 'Space Mono', monospace;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--accent);
-  letter-spacing: .07em;
-}
-
-/* "VersaKey Series" tekst onder het logo */
-.logo-sub {
-  font-size: 10px;
-  color: var(--muted);
-  margin-top: 1px;
-}
-
-/* Versie-badge naast het logo */
-.version-badge {
-  font-family: 'Space Mono', monospace;
+.enc-bank-badge {
   font-size: 9px;
-  color: var(--dim);
-  padding: 2px 6px;
-  border: 1px solid var(--border);
+  font-family: 'Space Mono', monospace;
+  padding: 2px 8px;
   border-radius: 10px;
-  flex-shrink: 0;
-}
-
-/* Verticale scheidingslijn tussen secties in de topbar */
-.sep {
-  width: 1px;
-  height: 20px;
-  background: var(--border);
-  flex-shrink: 0;
-}
-
-/* Kleine grijze labels ("MODEL", "GELUID", etc.) */
-.lbl {
-  font-size: 10px;
-  color: var(--muted);
-  letter-spacing: .05em;
-  text-transform: uppercase;
-  font-family: 'Space Mono', monospace;
-  white-space: nowrap;
-}
-
-/* Waarde-weergave (bijv. octaaf "C2", volume "80") */
-.val {
-  font-size: 12px;
-  color: var(--accent);
-  font-family: 'Space Mono', monospace;
-  min-width: 26px;
-  text-align: center;
-}
-
-/* Knoppen */
-.btn {
-  padding: 4px 9px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
-  font-size: 11px;
-  cursor: pointer;
-  transition: all .12s;
-  white-space: nowrap;
-  font-family: 'Outfit', sans-serif;
-}
-.btn:hover  { background: var(--surface2); border-color: var(--accent); }
-.btn:active { transform: scale(.93); }
-.btn.on     { background: var(--accent); color: #fff; border-color: var(--accent); }
-.btn.mon    { background: rgba(139,111,58,.15); color: var(--accent); border-color: var(--accent); font-weight: 600; }
-.btn:disabled { opacity: .35; cursor: not-allowed; }
-
-/* Dropdown (geluidskeuze) */
-.sel {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 4px 9px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-family: 'Outfit', sans-serif;
-  outline: none;
-  cursor: pointer;
-  max-width: 148px;
-  touch-action: auto;
-}
-.sel:focus { border-color: var(--accent); }
-
-/* Volume-schuifbalk */
-.rng {
-  -webkit-appearance: none;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--surface3);
-  outline: none;
-  width: 72px;
-  accent-color: var(--accent);
-}
-.rng::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--accent);
-  cursor: pointer;
-  border: 2px solid var(--bg);
-}
-
-/* MIDI-verbindingsbadge */
-.midi-badge {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  font-size: 10px;
-  font-family: 'Space Mono', monospace;
-  color: var(--muted);
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.midi-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--dim); transition: background .3s; flex-shrink: 0; }
-.midi-badge.ok   { color: var(--ok); }
-.midi-badge.ok .dot  { background: var(--ok); box-shadow: 0 0 4px var(--ok); }
-.midi-badge.err  { color: var(--err); }
-.midi-badge.err .dot { background: var(--err); }
-
-/* ── USB-MIDI HELPBALK ───────────────────────────────────────────*/
-.usb-hint {
-  display: none;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 16px;
-  background: rgba(163,48,48,.07);
-  border-bottom: 1px solid rgba(163,48,48,.2);
-  font-size: 11px;
-  color: var(--err);
-  font-family: 'Space Mono', monospace;
-}
-.usb-hint.show { display: flex; }
-.usb-hint a    { color: var(--accent); text-decoration: underline; cursor: pointer; }
-
-/* ── CC DEBUG MONITOR (v2.3) ─────────────────────────────────────
-   Toont live welk CC-nummer binnenkomt als je een knop draait.
-   Onmisbaar om te controleren welke CC-nummers de VersaKey stuurt. */
-.cc-debug {
-  display: flex;                    /* Standaard zichtbaar */
-  align-items: center;
-  gap: 10px;
-  padding: 5px 14px;
-  background: rgba(26,58,92,.07);   /* Licht blauw achtergrond */
-  border-bottom: 1px solid rgba(26,58,92,.15);
-  flex-shrink: 0;
-  flex-wrap: wrap;
-}
-.cc-debug.hidden { display: none; } /* Verborgen als gebruiker op "Verberg" klikt */
-
-/* Label "CC MONITOR" links */
-.cc-debug-lbl {
-  font-size: 9px;
-  font-family: 'Space Mono', monospace;
-  color: rgba(26,58,92,.7);
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  flex-shrink: 0;
-}
-
-/* De 8 mini-blokjes die live het laatste CC-nummer per slot tonen */
-.cc-slots {
-  display: flex;
-  gap: 4px;
-  flex: 1;
-  flex-wrap: wrap;
-}
-
-/* Eén mini-blokje: R1, CC74, waarde */
-.cc-slot {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 2px 5px;
-  background: rgba(26,58,92,.06);
-  border: 1px solid rgba(26,58,92,.12);
-  border-radius: 4px;
-  min-width: 46px;
-  transition: background .1s;
-}
-.cc-slot.active { background: rgba(26,58,92,.18); border-color: rgba(26,58,92,.4); } /* Oplichten bij activiteit */
-
-/* Label "R1" boven in het blokje */
-.cc-slot-lbl { font-size: 8px; color: rgba(26,58,92,.6); font-family: 'Space Mono', monospace; }
-
-/* CC-nummer in het midden */
-.cc-slot-cc  { font-size: 9px; color: var(--debug); font-family: 'Space Mono', monospace; font-weight: 700; }
-
-/* Waarde onderaan */
-.cc-slot-val { font-size: 8px; color: rgba(26,58,92,.7); font-family: 'Space Mono', monospace; }
-
-/* Grote live-weergave rechts: "LAATSTE: CC74 = 87" */
-.cc-live {
-  font-size: 11px;
-  font-family: 'Space Mono', monospace;
-  color: var(--debug);
   font-weight: 700;
-  flex-shrink: 0;
-  min-width: 180px;
-}
-
-/* Knop om de debug-balk te verbergen */
-.cc-debug-hide {
-  font-size: 9px;
-  padding: 2px 7px;
-  flex-shrink: 0;
-}
-
-/* ── ROTARY ENCODER SECTIE ──────────────────────────────────────
-   De sectie met 8 live CC-meter balken (Voorstel A)
-   en MIDI Learn knoppen per encoder (Voorstel B) */
-.enc-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 14px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-  flex-wrap: wrap;
-}
-
-/* Raster van 8 encoder-blokken naast elkaar */
-.enc-grid {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 5px;
-  flex: 1;
-  min-width: 0;
-}
-
-/* Eén encoder-blok: naam + CC badge + balk + waarde */
-.enc-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 5px 6px;
-  background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  position: relative;
-  transition: border-color .15s;
-  min-width: 0;
 }
+.enc-bank-badge.b1 { background: rgba(139,111,58,.12); color: var(--accent); border-color: var(--accent); }
+.enc-bank-badge.b2 { background: rgba(42,74,42,.12);   color: var(--bank2);  border-color: var(--bank2); }
 
-/* Encoder-blok actief in learn-modus */
-.enc-cell.learning {
-  border-color: var(--accent);
-  animation: learnPulse 0.7s ease-in-out infinite alternate;
-}
+.enc-grid { display:grid; grid-template-columns:repeat(8,1fr); gap:5px; flex:1; min-width:0; }
+.enc-cell { display:flex; flex-direction:column; gap:2px; padding:5px 6px;
+            background:var(--bg); border:1px solid var(--border); border-radius:6px;
+            position:relative; transition:border-color .15s; min-width:0; }
+.enc-cell.bank2 { border-color:rgba(42,74,42,.3); background:rgba(42,74,42,.04); }
+.enc-cell.learning { border-color:var(--accent); animation:learnPulse .7s ease-in-out infinite alternate; }
+.enc-cell.bank2.learning { border-color:var(--bank2); }
 
-/* Pulseer-animatie */
 @keyframes learnPulse {
   from { box-shadow: 0 0 0 0 rgba(139,111,58,.0); }
   to   { box-shadow: 0 0 0 3px rgba(139,111,58,.35); }
 }
 
-/* Bovenste rij: naam links, CC-badge rechts */
-.enc-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
+.enc-head { display:flex; justify-content:space-between; align-items:center; }
+.enc-rnum { font-size:8px; font-family:'Space Mono',monospace; color:var(--dim); font-weight:700; }
+.enc-rnum.bank2 { color:var(--bank2); }
+.enc-name { font-size:9px; font-weight:600; color:var(--text); font-family:'Space Mono',monospace;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:52px; }
+.enc-cc   { font-size:8px; color:var(--muted); font-family:'Space Mono',monospace;
+            background:var(--surface2); padding:1px 4px; border-radius:3px; cursor:pointer;
+            white-space:nowrap; transition:all .12s; flex-shrink:0; }
+.enc-cc:hover        { background:var(--accent); color:#fff; }
+.enc-cc.learn-active { background:var(--accent); color:#fff; }
+.enc-cc.bank2        { background:rgba(42,74,42,.15); color:var(--bank2); }
+.enc-cc.bank2:hover  { background:var(--bank2); color:#fff; }
 
-/* R1, R2 ... R8 label boven elke balk */
-.enc-rnum {
-  font-size: 8px;
-  font-family: 'Space Mono', monospace;
-  color: var(--dim);
-  font-weight: 700;
-}
+.enc-track { width:100%; height:7px; background:var(--surface3); border-radius:4px; overflow:hidden; }
+.enc-fill  { height:100%; border-radius:4px; width:50%; transition:width .04s linear; }
+.enc-val   { font-size:10px; color:var(--text); font-family:'Space Mono',monospace;
+             font-weight:700; text-align:right; min-height:13px; }
 
-/* Naam van de parameter (bijv. "Cutoff") */
-.enc-name {
-  font-size: 9px;
-  font-weight: 600;
-  color: var(--text);
-  font-family: 'Space Mono', monospace;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 52px;
-}
+/* Kleurcodering bank 1 */
+.enc-fill.c-amber  { background:#d4813a; }
+.enc-fill.c-teal   { background:#1D9E75; }
+.enc-fill.c-purple { background:#7F77DD; }
+.enc-fill.c-blue   { background:#378ADD; }
+.enc-fill.c-gray   { background:#888780; }
+/* Kleurcodering bank 2 (groenige varianten) */
+.enc-fill.c2-1 { background:#3a8f5a; }
+.enc-fill.c2-2 { background:#5a8f3a; }
+.enc-fill.c2-3 { background:#3a6f8f; }
+.enc-fill.c2-4 { background:#6f3a8f; }
+.enc-fill.c2-5 { background:#8f6f3a; }
+.enc-fill.c2-6 { background:#3a8f8f; }
+.enc-fill.c2-7 { background:#8f3a6f; }
+.enc-fill.c2-8 { background:#6f8f3a; }
 
-/* CC-nummer badge (bijv. "CC74") — klik om te leren */
-.enc-cc {
-  font-size: 8px;
-  color: var(--muted);
-  font-family: 'Space Mono', monospace;
-  background: var(--surface2);
-  padding: 1px 4px;
-  border-radius: 3px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all .12s;
-  flex-shrink: 0;
-}
-.enc-cc:hover         { background: var(--accent); color: #fff; }
-.enc-cc.learn-active  { background: var(--accent); color: #fff; }
+.enc-learn-status { font-size:9px; font-family:'Space Mono',monospace; color:var(--muted);
+                    white-space:nowrap; flex-shrink:0; }
+.enc-learn-status.active { color:var(--accent); font-weight:700; }
 
-/* De meter-balk achtergrond */
-.enc-track {
-  width: 100%;
-  height: 7px;
-  background: var(--surface3);
-  border-radius: 4px;
-  overflow: hidden;
-  position: relative;
-}
+/* ── WIZARD POPUP ────────────────────────────────────────────────
+   Stap-voor-stap programmeerwizard voor R1-R8 of R9-R16 */
+.wizard-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5);
+                  z-index:200; align-items:center; justify-content:center; }
+.wizard-overlay.show { display:flex; }
+.wizard-box { background:var(--bg); border:1px solid var(--border); border-radius:14px;
+              padding:24px 28px; max-width:500px; width:92%; box-shadow:0 8px 40px rgba(0,0,0,.2); }
+.wizard-title { font-size:15px; font-weight:700; color:var(--accent);
+                font-family:'Space Mono',monospace; margin-bottom:6px; }
+.wizard-step  { font-size:11px; color:var(--muted); font-family:'Space Mono',monospace;
+                margin-bottom:14px; }
+.wizard-current { background:var(--surface); border-radius:10px; padding:16px 18px; margin-bottom:16px; }
+.wizard-rnum    { font-size:22px; font-weight:700; font-family:'Space Mono',monospace;
+                  color:var(--accent); }
+.wizard-rnum.b2 { color:var(--bank2); }
+.wizard-rname   { font-size:12px; color:var(--text); margin:4px 0 8px; }
+.wizard-rname input { background:transparent; border:none; border-bottom:1px solid var(--border);
+                      font-family:'Outfit',sans-serif; font-size:12px; color:var(--text);
+                      outline:none; width:200px; padding:2px 0; touch-action:auto; }
+.wizard-cc-badge { display:inline-block; padding:4px 12px; border-radius:20px;
+                   background:rgba(139,111,58,.12); border:1px solid var(--accent);
+                   font-family:'Space Mono',monospace; font-size:14px; font-weight:700;
+                   color:var(--accent); margin-top:6px; min-width:80px; text-align:center;
+                   transition:all .15s; }
+.wizard-cc-badge.got { background:rgba(45,122,58,.15); border-color:var(--ok); color:var(--ok); }
+.wizard-status { font-size:11px; color:var(--muted); font-family:'Space Mono',monospace;
+                 margin-top:8px; min-height:18px; }
+.wizard-status.ok { color:var(--ok); font-weight:700; }
+.wizard-btns { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
+.wizard-btns .btn { flex:1; text-align:center; justify-content:center; }
+.wizard-progress { display:flex; gap:4px; margin-bottom:14px; }
+.wizard-dot { width:10px; height:10px; border-radius:50%; background:var(--surface3);
+              transition:all .2s; }
+.wizard-dot.done    { background:var(--ok); }
+.wizard-dot.current { background:var(--accent); transform:scale(1.3); }
 
-/* De gekleurde vulling van de balk */
-.enc-fill {
-  height: 100%;
-  border-radius: 4px;
-  width: 50%;
-  transition: width .04s linear;
-}
+/* ── HELP POPUP ──────────────────────────────────────────────────*/
+.help-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4);
+                z-index:100; align-items:center; justify-content:center; }
+.help-overlay.show { display:flex; }
+.help-box  { background:var(--bg); border:1px solid var(--border); border-radius:12px;
+             padding:22px 26px; max-width:480px; width:90%; box-shadow:0 8px 32px rgba(0,0,0,.18); }
+.help-title  { font-size:15px; font-weight:700; color:var(--accent);
+               font-family:'Space Mono',monospace; margin-bottom:14px; }
+.help-section{ margin-bottom:14px; }
+.help-sub    { font-size:11px; font-weight:700; color:var(--text); font-family:'Space Mono',monospace;
+               margin-bottom:5px; padding:3px 7px; background:var(--surface);
+               border-radius:4px; display:inline-block; }
+.help-p      { font-size:12px; color:var(--muted); line-height:1.6; margin-top:5px; }
+.help-close  { margin-top:16px; width:100%; padding:8px; font-size:12px; }
 
-/* Waarde-getal — v2.3: groter en duidelijker zichtbaar */
-.enc-val {
-  font-size: 10px;            /* v2.3: was 9px, nu 10px voor leesbaarheid */
-  color: var(--text);         /* v2.3: was muted (grijs), nu text (donkerbruin) */
-  font-family: 'Space Mono', monospace;
-  font-weight: 700;            /* v2.3: vet gedrukt zodat het opvalt */
-  text-align: right;
-  min-height: 13px;           /* Vaste hoogte zodat de balk niet springt */
-}
+/* ── PADS ────────────────────────────────────────────────────────*/
+.pads-bar  { display:flex; align-items:center; gap:10px; padding:8px 16px;
+             background:var(--surface2); border-bottom:1px solid var(--border);
+             flex-shrink:0; flex-wrap:wrap; }
+.pads-grid { display:grid; grid-template-columns:repeat(8,1fr); gap:5px; flex:1; min-width:0; }
+.pad  { height:42px; border-radius:6px; border:1px solid rgba(0,0,0,.1);
+        background:var(--surface); cursor:pointer; display:flex; flex-direction:column;
+        align-items:center; justify-content:center; gap:1px; transition:all .08s;
+        position:relative; overflow:hidden; touch-action:none;
+        box-shadow:0 1px 3px rgba(0,0,0,.08),inset 0 1px 0 rgba(255,255,255,.5); }
+.pad-bg   { position:absolute; inset:0; opacity:.16; transition:opacity .08s; }
+.pad:hover .pad-bg { opacity:.28; }
+.pad.hit           { transform:scale(.89); box-shadow:inset 0 2px 5px rgba(0,0,0,.18); }
+.pad.hit .pad-bg   { opacity:.65; }
+.pad-name { font-size:9px; font-weight:600; color:var(--text); position:relative; z-index:1;
+            text-align:center; font-family:'Space Mono',monospace; }
+.pad-n    { font-size:7px; color:var(--muted); position:relative; z-index:1; }
 
-/* Kleurcodering per encoder-groep */
-.enc-fill.c-amber  { background: #d4813a; } /* v2.3: iets feller oranje */
-.enc-fill.c-teal   { background: #1D9E75; }
-.enc-fill.c-purple { background: #7F77DD; }
-.enc-fill.c-blue   { background: #378ADD; }
-.enc-fill.c-gray   { background: #888780; }
+/* ── MIDI BAR ────────────────────────────────────────────────────*/
+.midi-bar { display:none; align-items:center; gap:8px; padding:5px 16px;
+            background:rgba(45,122,58,.06); border-bottom:1px solid rgba(45,122,58,.15); }
+.midi-bar.show { display:flex; }
+.midi-sel  { background:var(--bg); border:1px solid rgba(45,122,58,.25); color:var(--text);
+             padding:3px 9px; border-radius:6px; font-size:11px; font-family:'Outfit',sans-serif;
+             outline:none; cursor:pointer; flex:1; max-width:280px; touch-action:auto; }
+.midi-info { font-size:10px; color:var(--ok); font-family:'Space Mono',monospace; }
 
-/* Learn-status tekst */
-.enc-learn-status {
-  font-size: 9px;
-  font-family: 'Space Mono', monospace;
-  color: var(--muted);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.enc-learn-status.active { color: var(--accent); font-weight: 700; }
+/* ── KEYBOARD ────────────────────────────────────────────────────*/
+.kb-wrap   { flex:1; display:flex; align-items:center; justify-content:center;
+             padding:14px 16px 10px; overflow:hidden; position:relative; }
+.kb-area   { display:flex; align-items:flex-end; width:100%; justify-content:center; }
+.kb-scroll { overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch;
+             scrollbar-width:thin; scrollbar-color:var(--surface3) transparent; }
+.kb-scroll::-webkit-scrollbar       { height:3px; }
+.kb-scroll::-webkit-scrollbar-thumb { background:var(--surface3); border-radius:2px; }
+.keyboard  { position:relative; display:inline-block; }
+.wk { position:absolute; bottom:0; background:var(--wk); border:1px solid #c8bfb0;
+      border-radius:0 0 4px 4px; cursor:pointer; z-index:1; display:flex;
+      align-items:flex-end; justify-content:center; padding-bottom:5px;
+      box-shadow:0 2px 4px rgba(0,0,0,.1),inset 0 -2px 4px rgba(0,0,0,.05); touch-action:none; }
+.wk:hover { background:var(--wkh); }
+.wk.on    { background:var(--wka) !important; }
+.bk { position:absolute; top:0; background:linear-gradient(to bottom,#2a2820,var(--bk));
+      border:1px solid #000; border-radius:0 0 3px 3px; cursor:pointer; z-index:2;
+      box-shadow:2px 3px 5px rgba(0,0,0,.4); touch-action:none; }
+.bk:hover { background:linear-gradient(to bottom,#3a3830,#2e2c28); }
+.bk.on    { background:var(--bka) !important; }
+.k-lbl    { font-size:8px; color:#888; font-family:'Space Mono',monospace; }
+.strips   { display:flex; gap:6px; margin-right:10px; flex-shrink:0; padding-bottom:20px; }
+.strip    { width:calc(20px*var(--zoom)); height:calc(165px*var(--zoom));
+            background:var(--surface2); border:1px solid var(--border); border-radius:10px;
+            position:relative; overflow:hidden; cursor:ns-resize;
+            box-shadow:inset 0 2px 5px rgba(0,0,0,.05); touch-action:none;
+            transition:width .2s,height .2s; }
+.sf  { position:absolute; bottom:0; left:0; right:0; border-radius:0 0 10px 10px; transition:height .04s; }
+.pf  { background:#3b82f6; }
+.mf  { background:var(--accent); }
+.s-lbl { font-size:8px; color:var(--muted); text-align:center; margin-top:3px;
+         letter-spacing:.04em; font-family:'Space Mono',monospace; }
 
-/* ── HELP POPUP (v2.3) ───────────────────────────────────────────
-   Verschijnt als je op de ❓ knop klikt naast "Encoders" */
-.help-overlay {
-  display: none;              /* Standaard verborgen */
-  position: fixed;            /* Zweeft boven alles */
-  inset: 0;                   /* Vult het hele scherm */
-  background: rgba(0,0,0,.4); /* Donkere transparante laag erachter */
-  z-index: 100;
-  align-items: center;
-  justify-content: center;
-}
-.help-overlay.show { display: flex; } /* Zichtbaar na klikken op ❓ */
-
-/* Het witte vlak met de uitleg */
-.help-box {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 22px 26px;
-  max-width: 480px;
-  width: 90%;
-  box-shadow: 0 8px 32px rgba(0,0,0,.18);
-}
-
-/* Titel van de popup */
-.help-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--accent);
-  font-family: 'Space Mono', monospace;
-  margin-bottom: 14px;
-}
-
-/* Sectie in de popup */
-.help-section {
-  margin-bottom: 14px;
-}
-
-/* Subtitel per sectie */
-.help-sub {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text);
-  font-family: 'Space Mono', monospace;
-  margin-bottom: 5px;
-  padding: 3px 7px;
-  background: var(--surface);
-  border-radius: 4px;
-  display: inline-block;
-}
-
-/* Uitleg-tekst */
-.help-p {
-  font-size: 12px;
-  color: var(--muted);
-  line-height: 1.6;
-  margin-top: 5px;
-}
-
-/* Sluitknop onderaan de popup */
-.help-close {
-  margin-top: 16px;
-  width: 100%;
-  padding: 8px;
-  font-size: 12px;
-}
-
-/* Responsive: op kleine schermen 4 kolommen i.p.v. 8 */
-@media (max-width: 650px) {
-  .enc-grid { grid-template-columns: repeat(4, 1fr); }
-  .cc-slots { display: none; }
-}
-
-/* Drum pads balk */
-.pads-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  background: var(--surface2);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-  flex-wrap: wrap;
-}
-
-/* Raster van 8 pads */
-.pads-grid {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 5px;
-  flex: 1;
-  min-width: 0;
-}
-
-/* Eén drum-pad */
-.pad {
-  height: 42px;
-  border-radius: 6px;
-  border: 1px solid rgba(0,0,0,.1);
-  background: var(--surface);
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-  transition: all .08s;
-  position: relative;
-  overflow: hidden;
-  touch-action: none;
-  box-shadow: 0 1px 3px rgba(0,0,0,.08), inset 0 1px 0 rgba(255,255,255,.5);
-}
-.pad-bg     { position: absolute; inset: 0; opacity: .16; transition: opacity .08s; }
-.pad:hover .pad-bg  { opacity: .28; }
-.pad.hit            { transform: scale(.89); box-shadow: inset 0 2px 5px rgba(0,0,0,.18); }
-.pad.hit .pad-bg    { opacity: .65; }
-.pad-name   { font-size: 9px; font-weight: 600; color: var(--text); position: relative; z-index: 1; text-align: center; font-family: 'Space Mono', monospace; }
-.pad-n      { font-size: 7px; color: var(--muted); position: relative; z-index: 1; }
-
-/* MIDI apparaat balk */
-.midi-bar {
-  display: none;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 16px;
-  background: rgba(45,122,58,.06);
-  border-bottom: 1px solid rgba(45,122,58,.15);
-}
-.midi-bar.show { display: flex; }
-.midi-sel {
-  background: var(--bg);
-  border: 1px solid rgba(45,122,58,.25);
-  color: var(--text);
-  padding: 3px 9px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-family: 'Outfit', sans-serif;
-  outline: none;
-  cursor: pointer;
-  flex: 1;
-  max-width: 280px;
-  touch-action: auto;
-}
-.midi-info { font-size: 10px; color: var(--ok); font-family: 'Space Mono', monospace; }
-
-/* ── KLAVIERBORD WRAPPER ─────────────────────────────────────────*/
-.kb-wrap {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 14px 16px 10px;
-  overflow: hidden;
-  position: relative;
-}
-
-/* Piano en touch-strips naast elkaar */
-.kb-area {
-  display: flex;
-  align-items: flex-end;
-  width: 100%;
-  justify-content: center;
-}
-
-/* Scrollbare zone voor de piano */
-.kb-scroll {
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: var(--surface3) transparent;
-}
-.kb-scroll::-webkit-scrollbar       { height: 3px; }
-.kb-scroll::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 2px; }
-
-/* Het piano-element */
-.keyboard { position: relative; display: inline-block; }
-
-/* Witte piano-toets */
-.wk {
-  position: absolute;
-  bottom: 0;
-  background: var(--wk);
-  border: 1px solid #c8bfb0;
-  border-radius: 0 0 4px 4px;
-  cursor: pointer;
-  z-index: 1;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding-bottom: 5px;
-  box-shadow: 0 2px 4px rgba(0,0,0,.1), inset 0 -2px 4px rgba(0,0,0,.05);
-  touch-action: none;
-}
-.wk:hover { background: var(--wkh); }
-.wk.on    { background: var(--wka) !important; }
-
-/* Zwarte piano-toets */
-.bk {
-  position: absolute;
-  top: 0;
-  background: linear-gradient(to bottom, #2a2820, var(--bk));
-  border: 1px solid #000;
-  border-radius: 0 0 3px 3px;
-  cursor: pointer;
-  z-index: 2;
-  box-shadow: 2px 3px 5px rgba(0,0,0,.4);
-  touch-action: none;
-}
-.bk:hover { background: linear-gradient(to bottom, #3a3830, #2e2c28); }
-.bk.on    { background: var(--bka) !important; }
-
-/* "C2", "C3" labels op de witte toetsen */
-.k-lbl { font-size: 8px; color: #888; font-family: 'Space Mono', monospace; }
-
-/* ── TOUCH STRIPS ────────────────────────────────────────────────*/
-.strips { display: flex; gap: 6px; margin-right: 10px; flex-shrink: 0; padding-bottom: 20px; }
-.strip {
-  width:  calc(20px * var(--zoom));
-  height: calc(165px * var(--zoom));
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  position: relative;
-  overflow: hidden;
-  cursor: ns-resize;
-  box-shadow: inset 0 2px 5px rgba(0,0,0,.05);
-  touch-action: none;
-  transition: width .2s, height .2s;
-}
-.sf { position: absolute; bottom: 0; left: 0; right: 0; border-radius: 0 0 10px 10px; transition: height .04s; }
-.pf { background: #3b82f6; }
-.mf { background: var(--accent); }
-.s-lbl { font-size: 8px; color: var(--muted); text-align: center; margin-top: 3px; letter-spacing: .04em; font-family: 'Space Mono', monospace; }
-
-/* ── STATUSBALK ONDERAAN ────────────────────────────────────────*/
-.note-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 5px 16px;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.note-txt { font-size: 11px; font-family: 'Space Mono', monospace; color: var(--muted); }
-
-/* LED-lampje */
-.led { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); transition: all .05s; }
-.led.f { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+/* ── STATUSBALK ──────────────────────────────────────────────────*/
+.note-bar  { display:flex; align-items:center; justify-content:space-between;
+             padding:5px 16px; background:var(--surface); border-top:1px solid var(--border);
+             flex-shrink:0; }
+.note-txt  { font-size:11px; font-family:'Space Mono',monospace; color:var(--muted); }
+.led       { width:7px; height:7px; border-radius:50%; background:var(--dim); transition:all .05s; }
+.led.f     { background:var(--ok); box-shadow:0 0 6px var(--ok); }
 
 /* ── RESPONSIVE ─────────────────────────────────────────────────*/
-@media (max-width: 650px) {
-  .pads-grid { grid-template-columns: repeat(4, 1fr); }
-  .sel       { max-width: 115px; }
-  .rng       { width: 55px; }
-  .topbar    { padding: 8px 10px; gap: 6px; }
-  .pads-bar  { padding: 7px 10px; }
-  .kb-wrap   { padding: 10px 10px 8px; }
+@media (max-width:650px) {
+  .enc-grid  { grid-template-columns:repeat(4,1fr); }
+  .pads-grid { grid-template-columns:repeat(4,1fr); }
+  .cc-slots  { display:none; }
+  .sel       { max-width:115px; }
+  .rng       { width:55px; }
+  .topbar    { padding:8px 10px; gap:6px; }
 }
 </style>
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════════════════════════
-     TOPBAR
-     ══════════════════════════════════════════════════════════════ -->
+<!-- TOPBAR -->
 <div class="topbar">
-
   <div class="logo">
     <div class="logo-dot"></div>
-    <div>
-      <div class="logo-text">DEVINE</div>
-      <div class="logo-sub">VersaKey Series</div>
-    </div>
+    <div><div class="logo-text">DEVINE</div><div class="logo-sub">VersaKey Series</div></div>
   </div>
-
-  <span class="version-badge">v2.3</span>
+  <span class="version-badge">v2.4</span>
   <div class="sep"></div>
-
   <span class="lbl">Model</span>
   <button class="btn"     id="m25" onclick="setModel(25)">VK-25</button>
   <button class="btn mon" id="m49" onclick="setModel(49)">VK-49</button>
   <button class="btn"     id="m61" onclick="setModel(61)">VK-61</button>
   <button class="btn"     id="m88" onclick="setModel(88)">VK-88</button>
-
   <div class="sep"></div>
-
   <span class="lbl">Geluid</span>
   <select class="sel" id="instrSel" onchange="setInstr(this.value)">
     <optgroup label="Piano">
-      <option value="0" selected>Grand Piano</option>
-      <option value="1">Bright Piano</option>
-      <option value="2">Electric Grand</option>
-      <option value="4">E-Piano 1</option>
-      <option value="5">E-Piano 2</option>
-      <option value="6">Harpsichord</option>
+      <option value="0" selected>Grand Piano</option><option value="1">Bright Piano</option>
+      <option value="2">Electric Grand</option><option value="4">E-Piano 1</option>
+      <option value="5">E-Piano 2</option><option value="6">Harpsichord</option>
     </optgroup>
     <optgroup label="Orgel">
-      <option value="16">Drawbar Organ</option>
-      <option value="18">Rock Organ</option>
+      <option value="16">Drawbar Organ</option><option value="18">Rock Organ</option>
       <option value="19">Church Organ</option>
     </optgroup>
     <optgroup label="Gitaar">
-      <option value="24">Nylon Guitar</option>
-      <option value="25">Steel Guitar</option>
+      <option value="24">Nylon Guitar</option><option value="25">Steel Guitar</option>
       <option value="30">Dist. Guitar</option>
     </optgroup>
     <optgroup label="Strijkers">
-      <option value="40">Violin</option>
-      <option value="48">Strings 1</option>
+      <option value="40">Violin</option><option value="48">Strings 1</option>
       <option value="49">Strings 2</option>
     </optgroup>
     <optgroup label="Blaas">
-      <option value="56">Trumpet</option>
-      <option value="61">Brass Section</option>
+      <option value="56">Trumpet</option><option value="61">Brass Section</option>
     </optgroup>
     <optgroup label="Synth">
-      <option value="80">Syn Square</option>
-      <option value="81">Syn Saw</option>
-      <option value="88">New Age Pad</option>
-      <option value="89">Warm Pad</option>
+      <option value="80">Syn Square</option><option value="81">Syn Saw</option>
+      <option value="88">New Age Pad</option><option value="89">Warm Pad</option>
     </optgroup>
     <optgroup label="Bas">
-      <option value="32">Acoustic Bass</option>
-      <option value="33">Fingered Bass</option>
+      <option value="32">Acoustic Bass</option><option value="33">Fingered Bass</option>
       <option value="38">Synth Bass</option>
     </optgroup>
   </select>
-
   <div class="sep"></div>
-
   <span class="lbl">Oct</span>
   <button class="btn" onclick="chOct(-1)">−</button>
   <span class="val" id="octV">C2</span>
   <button class="btn" onclick="chOct(1)">+</button>
-
   <div class="sep"></div>
-
   <span class="lbl">Transp</span>
   <button class="btn" onclick="chTr(-1)">−</button>
   <span class="val" id="trV">0</span>
   <button class="btn" onclick="chTr(1)">+</button>
-
   <div class="sep"></div>
-
   <span class="lbl">Vol</span>
   <input type="range" class="rng" min="0" max="100" value="80" step="1" oninput="chVol(this.value)">
   <span class="val" id="volV">80</span>
-
   <div class="sep"></div>
-
   <button class="btn" id="susBtn" onclick="chSus()">Sustain</button>
-
   <div class="sep"></div>
-
-  <div class="midi-badge" id="midiBadge" onclick="scanMidi()" title="Klik om MIDI apparaten te scannen">
-    <div class="dot"></div>
-    <span id="midiLbl">MIDI scannen…</span>
+  <div class="midi-badge" id="midiBadge" onclick="scanMidi()">
+    <div class="dot"></div><span id="midiLbl">MIDI scannen…</span>
   </div>
+</div>
 
-</div><!-- /topbar -->
-
-<!-- USB hint balk -->
+<!-- USB HINT -->
 <div class="usb-hint" id="usbHint">
-  <span>⚠️ Geen MIDI gevonden —</span>
-  <span>sluit je VersaKey aan via <strong>USB-kabel</strong> en gebruik <strong>Chrome</strong> of <strong>Edge</strong> op Windows/Android.</span>
+  <span>⚠️ Geen MIDI —</span>
+  <span>sluit VersaKey aan via <strong>USB</strong> en gebruik <strong>Chrome/Edge</strong>.</span>
   <span id="usbHintDetail"></span>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════
-     CC DEBUG MONITOR (v2.3) — NIEUW
-     Toont live welk CC-nummer jouw VersaKey stuurt als je een knop draait.
-     Zo kun je precies zien of R1 CC74 stuurt, R2 CC71, enzovoort.
-     Open ook Chrome → F12 → Console voor nog meer detail.
-     ══════════════════════════════════════════════════════════════ -->
+<!-- CC DEBUG MONITOR -->
 <div class="cc-debug" id="ccDebug">
-
-  <!-- Label links -->
   <span class="cc-debug-lbl">CC Monitor</span>
+  <div class="cc-slots" id="ccSlots"></div>
+  <span class="cc-live" id="ccLive">— draai een knop —</span>
+  <button class="btn" style="font-size:9px;padding:2px 6px;" onclick="toggleDebug()" id="debugToggleBtn">Verberg</button>
+</div>
 
-  <!-- 8 mini-blokjes, één per encoder-slot -->
-  <div class="cc-slots" id="ccSlots">
-    <!-- Wordt gevuld door buildCCSlots() in JavaScript -->
+<!-- ENCODER SECTIE -->
+<div class="enc-bar" id="encBar">
+
+  <!-- Bank-indicator + wissel knop -->
+  <div class="enc-bank-strip">
+    <span class="enc-bank-badge" id="encBankBadge">Bank 1 · R1–R8</span>
+    <button class="btn" id="encBankBtn" onclick="switchEncBank()"
+      style="font-size:10px;padding:2px 8px;">Wissel → R9–R16</button>
+    <button class="btn" onclick="startWizard()" style="font-size:10px;padding:2px 8px;"
+      title="Start de programmeerwizard — koppelt alle 8 encoders van de actieve bank stap voor stap">
+      🎛️ Programmeer bank</button>
+    <button class="btn" onclick="showHelp()" style="font-size:10px;padding:2px 6px;">❓</button>
+    <span class="enc-learn-status" id="encLearnStatus">— klik CC-badge om te leren —</span>
+    <button class="btn" onclick="resetLearn()" style="font-size:10px;padding:2px 8px;"
+      title="Herstel standaard CC-nummers voor de actieve bank">↺ Reset</button>
   </div>
-
-  <!-- Grote live-weergave van het laatste CC-bericht -->
-  <span class="cc-live" id="ccLive">— draai een knop om te zien welk CC binnenkomt —</span>
-
-  <!-- Knop om de debug-balk te verbergen als je hem niet meer nodig hebt -->
-  <button class="btn cc-debug-hide" onclick="toggleDebug()" id="debugToggleBtn" title="Verberg de CC monitor balk">Verberg</button>
-
-</div><!-- /cc-debug -->
-
-<!-- ══════════════════════════════════════════════════════════════
-     ROTARY ENCODER SECTIE (v2.1 + v2.3 verbeteringen)
-     A: 8 live meter-balken die bewegen als je de knop draait
-     B: MIDI Learn — klik op CC-badge → draai hardware knop → opgeslagen
-     ══════════════════════════════════════════════════════════════ -->
-<div class="enc-bar">
-
-  <!-- Label + ❓ help knop -->
-  <span class="lbl" style="flex-shrink:0;">Encoders</span>
-
-  <!-- v2.3: Help knop — klik voor uitleg over CC-badge en Reset Learn -->
-  <button class="btn" onclick="showHelp()" style="padding:2px 7px;font-size:11px;flex-shrink:0;"
-    title="Klik voor uitleg over MIDI Learn en Reset Learn">❓</button>
-
-  <!-- Status-tekst: aanwijzing of learn-modus actief is -->
-  <span class="enc-learn-status" id="encLearnStatus">— klik CC-badge om te leren —</span>
 
   <!-- Raster van 8 encoder-blokken -->
   <div class="enc-grid" id="encGrid"></div>
 
-  <!-- Reset Learn knop + tooltip tekst -->
-  <button class="btn" onclick="resetLearn()" style="flex-shrink:0;font-size:10px;"
-    title="Verwijder alle geleerde CC-koppelingen en herstel standaard waarden uit het handboek">
-    ↺ Reset Learn
-  </button>
+</div>
 
-</div><!-- /enc-bar -->
-
-<!-- ══════════════════════════════════════════════════════════════
-     DRUM PADS BALK
-     ══════════════════════════════════════════════════════════════ -->
+<!-- DRUM PADS -->
 <div class="pads-bar">
   <span class="lbl">Drum Pads</span>
   <div class="pads-grid" id="padsG"></div>
   <button class="btn" id="bankBtn" onclick="chBank()" style="flex-shrink:0;margin-left:4px;">Bank 1–8</button>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════
-     MIDI APPARAAT BALK
-     ══════════════════════════════════════════════════════════════ -->
+<!-- MIDI APPARAAT BAR -->
 <div class="midi-bar" id="midiBar">
   <span class="midi-info">Apparaat:</span>
   <select class="midi-sel" id="midiSel" onchange="pickMidi(this.value)">
@@ -954,566 +471,383 @@ body {
   <span class="midi-info" id="midiInfo"></span>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════
-     PIANO + TOUCH STRIPS
-     ══════════════════════════════════════════════════════════════ -->
-<div class="kb-wrap">
-  <div class="kb-area">
-
-    <!-- Touch strips -->
-    <div class="strips">
-      <div>
-        <div class="strip" id="pitchS"
-          ontouchstart="sS(event,'p')" ontouchmove="sM(event,'p')" ontouchend="sE(event,'p')"
-          onmousedown="sS(event,'p')">
-          <div class="sf pf" id="pitchF" style="height:50%"></div>
-        </div>
-        <div class="s-lbl">PITCH</div>
+<!-- PIANO + STRIPS -->
+<div class="kb-wrap"><div class="kb-area">
+  <div class="strips">
+    <div>
+      <div class="strip" id="pitchS"
+        ontouchstart="sS(event,'p')" ontouchmove="sM(event,'p')" ontouchend="sE(event,'p')"
+        onmousedown="sS(event,'p')">
+        <div class="sf pf" id="pitchF" style="height:50%"></div>
       </div>
-      <div>
-        <div class="strip" id="modS"
-          ontouchstart="sS(event,'m')" ontouchmove="sM(event,'m')" ontouchend="sE(event,'m')"
-          onmousedown="sS(event,'m')">
-          <div class="sf mf" id="modF" style="height:0%"></div>
-        </div>
-        <div class="s-lbl">MOD</div>
+      <div class="s-lbl">PITCH</div>
+    </div>
+    <div>
+      <div class="strip" id="modS"
+        ontouchstart="sS(event,'m')" ontouchmove="sM(event,'m')" ontouchend="sE(event,'m')"
+        onmousedown="sS(event,'m')">
+        <div class="sf mf" id="modF" style="height:0%"></div>
       </div>
+      <div class="s-lbl">MOD</div>
     </div>
-
-    <!-- Scrollbare piano -->
-    <div class="kb-scroll">
-      <div class="keyboard" id="kb"></div>
-    </div>
-
   </div>
-</div>
+  <div class="kb-scroll"><div class="keyboard" id="kb"></div></div>
+</div></div>
 
-<!-- ══════════════════════════════════════════════════════════════
-     STATUSBALK ONDERAAN (met zoom knoppen)
-     ══════════════════════════════════════════════════════════════ -->
+<!-- STATUSBALK -->
 <div class="note-bar">
   <span class="note-txt" id="noteTxt">— speel een toets —</span>
   <div class="led" id="led"></div>
-
-  <!-- Zoom knoppen (v2.2) -->
   <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
     <span style="font-size:9px;color:var(--muted);font-family:'Space Mono',monospace;">ZOOM</span>
-    <button class="btn" id="zoomOut" onclick="chZoom(-1)" style="padding:2px 7px;font-size:11px;" title="Kleiner">−</button>
+    <button class="btn" id="zoomOut" onclick="chZoom(-1)" style="padding:2px 7px;font-size:11px;">−</button>
     <span class="val" id="zoomLbl" style="min-width:28px;font-size:11px;">1×</span>
-    <button class="btn" id="zoomIn"  onclick="chZoom(+1)" style="padding:2px 7px;font-size:11px;" title="Groter">+</button>
+    <button class="btn" id="zoomIn"  onclick="chZoom(+1)" style="padding:2px 7px;font-size:11px;">+</button>
   </div>
-
   <span class="note-txt" id="devTxt" style="font-size:10px;"></span>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════
-     HELP POPUP (v2.3) — Uitleg over MIDI Learn en Reset Learn
-     Verschijnt als je op de ❓ knop klikt.
-     ══════════════════════════════════════════════════════════════ -->
+<!-- WIZARD POPUP -->
+<div class="wizard-overlay" id="wizardOverlay">
+  <div class="wizard-box">
+    <div class="wizard-title" id="wizTitle">🎛️ Programmeer Bank</div>
+    <div class="wizard-step"  id="wizStep">Stap 1 van 8</div>
+
+    <!-- Voortgang stippen -->
+    <div class="wizard-progress" id="wizProgress"></div>
+
+    <!-- Huidige encoder info -->
+    <div class="wizard-current">
+      <div class="wizard-rnum" id="wizRnum">R1</div>
+      <div class="wizard-rname">
+        Naam: <input type="text" id="wizNameInput" value="" placeholder="bijv. Filter Cutoff"
+                     onchange="wizUpdateName(this.value)" onclick="this.focus()">
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted);">Ontvangen CC:</div>
+      <div class="wizard-cc-badge" id="wizCCBadge">wacht...</div>
+      <div class="wizard-status"   id="wizStatus">Draai de fysieke knop op je VersaKey 👆</div>
+    </div>
+
+    <!-- Knoppen -->
+    <div class="wizard-btns">
+      <button class="btn" id="wizNextBtn" onclick="wizNext()" disabled
+        style="background:rgba(45,122,58,.1);border-color:var(--ok);color:var(--ok);">
+        ✓ Volgende encoder →
+      </button>
+      <button class="btn" onclick="wizSkip()" title="Sla deze encoder over">
+        ⏭ Overslaan
+      </button>
+      <button class="btn" onclick="wizCancel()"
+        style="border-color:var(--err);color:var(--err);">
+        ✕ Annuleren
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- HELP POPUP -->
 <div class="help-overlay" id="helpOverlay" onclick="hideHelp()">
   <div class="help-box" onclick="event.stopPropagation()">
+    <div class="help-title">❓ Uitleg: Encoders &amp; Banken</div>
 
-    <div class="help-title">❓ Uitleg: Encoders &amp; MIDI Learn</div>
-
-    <!-- Sectie 1: wat zijn de CC-badges -->
     <div class="help-section">
-      <span class="help-sub">CC-badge (bijv. "CC74")</span>
+      <span class="help-sub">Bank 1 (R1–R8) vs Bank 2 (R9–R16)</span>
       <p class="help-p">
-        Elke knop op je VersaKey stuurt een <strong>CC-nummer</strong> — een getal van 0 tot 127
-        dat zegt <em>welke parameter</em> wordt bediend. CC74 = Filter, CC71 = Resonantie, etc.
+        Je VersaKey heeft 8 fysieke draaiknoppen die je <strong>dubbel kunt programmeren</strong>.
+        Bank 1 = R1–R8 is de standaard bovenste laag.
+        Bank 2 = R9–R16 is de tweede laag — activeer die op de VersaKey met
+        <strong>EDIT → BANK L of BANK M</strong>.
         <br><br>
-        Als je op de CC-badge klikt, gaat de encoder in <strong>MIDI Learn modus</strong>:
-        de rand pulseert en de app wacht. Draai dan de gewenste knop op je VersaKey hardware.
-        De app leert automatisch welk CC-nummer die knop stuurt en koppelt ze aan elkaar.
+        Gebruik de <strong>"Wissel → R9–R16"</strong> knop in de app om te wisselen
+        welke bank je ziet en leert.
       </p>
     </div>
 
-    <!-- Sectie 2: stap voor stap MIDI Learn -->
     <div class="help-section">
-      <span class="help-sub">Stap voor stap: MIDI Learn</span>
+      <span class="help-sub">🎛️ Programmeer bank (wizard)</span>
       <p class="help-p">
-        1️⃣ &nbsp;Klik op de CC-badge van de encoder die je wil koppelen (bijv. "CC74" bij R1)<br>
-        2️⃣ &nbsp;De rand van het blokje begint te <em>pulsen</em> — de app luistert nu<br>
-        3️⃣ &nbsp;Draai de fysieke knop op je VersaKey (bijv. de eerste draaiknop)<br>
-        4️⃣ &nbsp;Je ziet "✓ R1 = CC74 opgeslagen" verschijnen — klaar!<br>
-        5️⃣ &nbsp;Herhaal dit voor R2, R3 ... R8
+        De wizard loopt stap voor stap door alle 8 encoders van de actieve bank.
+        Per encoder: draai de knop op je VersaKey → de app leert het CC-nummer automatisch.
+        Klik "Volgende encoder →" om door te gaan.
+        <br><br>
+        Activeer eerst de juiste bank op je VersaKey hardware:
+        <br>· Bank 1 (R1–R8): gewoon inschakelen, dat is de standaard
+        <br>· Bank 2 (R9–R16): druk <strong>EDIT + BANK L</strong> op de VersaKey
       </p>
     </div>
 
-    <!-- Sectie 3: Reset Learn -->
     <div class="help-section">
-      <span class="help-sub">↺ Reset Learn</span>
+      <span class="help-sub">CC-badge klikken (handmatig leren)</span>
       <p class="help-p">
-        Deze knop wist alle koppelingen die je via MIDI Learn hebt gemaakt en zet
-        alle CC-nummers terug naar de <strong>standaard waarden uit het handboek</strong>:
-        R1=CC74, R2=CC71, R3=CC21, R4=CC18, R5=CC73, R6=CC72, R7=CC93, R8=CC7.
-        <br><br>
-        Gebruik dit als je opnieuw wil beginnen of als de knoppen niet meer kloppen.
+        Klik op "CC131" bij R1 → rand pulseert → draai de knop → opgeslagen.
+        Dit werkt ook individueel per encoder, zonder wizard.
       </p>
     </div>
 
-    <!-- Sectie 4: CC Monitor uitleg -->
     <div class="help-section">
-      <span class="help-sub">CC Monitor (blauwe balk bovenaan)</span>
+      <span class="help-sub">↺ Reset (fabriekswaarden)</span>
       <p class="help-p">
-        De blauwe balk toont <strong>live welk CC-nummer binnenkomt</strong> als je een knop draait.
-        Dit helpt je te zien of R1 echt CC74 stuurt of een ander nummer.
-        Klik "Verberg" om de balk te sluiten als je hem niet meer nodig hebt.
-        <br><br>
-        Tip: open ook <strong>Chrome → F12 → Console</strong> voor nog meer detail.
+        Bank 1 reset naar de fabrieksinstellingen uit het Devine handboek:<br>
+        R1=CC131, R2=CC7, R3=CC92, R4=CC81, R5=CC91, R6=CC67, R7=CC86, R8=CC93<br><br>
+        Bank 2 heeft geen fabriekswaarden — reset wist alle geleerde koppelingen.
       </p>
     </div>
 
     <button class="btn help-close" onclick="hideHelp()">Sluiten ✕</button>
   </div>
-</div><!-- /help-overlay -->
+</div>
 
-<!-- ══════════════════════════════════════════════════════════════
-     JAVASCRIPT
-     ══════════════════════════════════════════════════════════════ -->
 <script>
-/* ── VERSIE INFO ─────────────────────────────────────────────────*/
-var APP_VERSION = '2.3.0';
-console.log('[VersaKey] app versie', APP_VERSION);
-console.log('[VersaKey] TIP: draai een knop op je VersaKey en kijk hier welk CC-nummer binnenkomt!');
+/* ── VERSIE ──────────────────────────────────────────────────────*/
+var APP_VERSION = '2.4.0';
+console.log('[VersaKey] v' + APP_VERSION);
+console.log('[VersaKey] Fabrieks CC-nummers (Appendix H): R1=131, R2=7, R3=92, R4=81, R5=91, R6=67, R7=86, R8=93');
 
-/* ── NOOT NAMEN EN PIANO LAYOUT ──────────────────────────────────
-   NN = namen van de 12 noten per octaaf
-   BP = 1 = zwarte toets, 0 = witte toets */
+/* ── NOOT NAMEN EN PIANO LAYOUT ──────────────────────────────────*/
 var NN = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 var BP = [0,1,0,1,0,0,1,0,1,0,1,0];
-
-/* ── MODEL CONFIGURATIE ──────────────────────────────────────────
-   s = eerste MIDI-nootnummer, n = aantal toetsen */
-var MC = {
-  25: { s: 48, n: 25 },
-  49: { s: 36, n: 49 },
-  61: { s: 36, n: 61 },
-  88: { s: 21, n: 88 }
-};
-
-/* ── AFMETINGEN PIANO-TOETSEN ────────────────────────────────────
-   Dit zijn de BASIS-afmetingen bij zoom 1×. */
+var MC = { 25:{s:48,n:25}, 49:{s:36,n:49}, 61:{s:36,n:61}, 88:{s:21,n:88} };
 var WW=36, WH=170, BW=22, BH=105;
 
-/* ── ZOOM INSTELLING (v2.2) ──────────────────────────────────────
-   3 zoomniveaus: 1× / 1.5× / 2× */
+/* ── ZOOM ────────────────────────────────────────────────────────*/
 var ZOOM_LEVELS = [1, 1.5, 2];
 var zoomIdx = (function() {
-  var saved = parseInt(localStorage.getItem('vk-zoom') || '0');
-  return (saved >= 0 && saved <= 2) ? saved : 0;
+  var s = parseInt(localStorage.getItem('vk-zoom') || '0');
+  return (s >= 0 && s <= 2) ? s : 0;
 })();
 
-/* ── TOESTANDSVARIABELEN ─────────────────────────────────────────*/
-var aC     = null;    /* AudioContext */
-var mG     = null;    /* Master gain node */
-var aN     = {};      /* Actieve Noten */
-var sus    = false;   /* Sustain aan/uit */
-var susH   = {};      /* Vastgehouden sustain-noten */
-var vol    = .8;      /* Volume 0.0–1.0 */
-var vel    = 90;      /* Standaard velocity */
-var octOff = 0;       /* Octaafverschuiving */
-var tr     = 0;       /* Transpositie halve tonen */
-var instr  = 0;       /* GM programmanummer */
-var mdl    = 49;      /* Actief model */
-var pb     = 0;       /* Pitch Bend waarde */
-var sDr    = {};      /* Strip sleepstatus */
-var bank   = 0;       /* Pad bank 0 of 1 */
+/* ── TOESTAND ────────────────────────────────────────────────────*/
+var aC=null, mG=null, aN={}, sus=false, susH={};
+var vol=.8, vel=90, octOff=0, tr=0, instr=0, mdl=49, pb=0, sDr={}, bank=0;
 
-/* ── ROTARY ENCODER DEFINITIE (v2.1) ────────────────────────────
-   De 8 fysieke draaiknoppen met hun STANDAARD CC-nummers uit het handboek.
-   BELANGRIJK: als jouw VersaKey andere CC-nummers stuurt, gebruik MIDI Learn!
-   n   = naam in de app
-   cc  = standaard CC-nummer (uit het Devine handboek)
-   col = kleurklasse voor de meter-balk */
-var ENC_DEF = [
-  { n: 'Cutoff',   cc: 74, col: 'c-amber'  }, /* R1: filterfrequentie */
-  { n: 'Rez',      cc: 71, col: 'c-amber'  }, /* R2: filter resonantie */
-  { n: 'LFO Rate', cc: 21, col: 'c-teal'   }, /* R3: LFO snelheid */
-  { n: 'Detune',   cc: 18, col: 'c-teal'   }, /* R4: oscillator detune */
-  { n: 'Attack',   cc: 73, col: 'c-purple' }, /* R5: amp attack tijd */
-  { n: 'Release',  cc: 72, col: 'c-purple' }, /* R6: amp release tijd */
-  { n: 'Chorus',   cc: 93, col: 'c-blue'   }, /* R7: chorus diepte */
-  { n: 'Volume',   cc:  7, col: 'c-gray'   }  /* R8: master volume */
+/* ── ENCODER DEFINITIE ───────────────────────────────────────────
+   BANK 1 (R1-R8): Fabrieks CC-nummers uit Appendix H van het Devine handboek
+   BANK 2 (R9-R16): Geen fabriekswaarden — vrij te programmeren */
+var ENC_BANKS = [
+  /* Bank 1: R1–R8 — CORRECTE fabriekswaarden VersaKey 49 */
+  [
+    { n:'Prog Ch',  cc:131, col:'c-amber'  }, /* R1: Program Change (CC131 = speciaal) */
+    { n:'Volume',   cc:7,   col:'c-amber'  }, /* R2: Master Volume */
+    { n:'Ctrl 92',  cc:92,  col:'c-teal'   }, /* R3: Standard MIDI Controller 92 */
+    { n:'Ctrl 81',  cc:81,  col:'c-teal'   }, /* R4: Standard MIDI Controller 81 */
+    { n:'Reverb',   cc:91,  col:'c-purple' }, /* R5: Reverb depth (CC91) */
+    { n:'Ctrl 67',  cc:67,  col:'c-purple' }, /* R6: Standard MIDI Controller 67 */
+    { n:'Ctrl 86',  cc:86,  col:'c-blue'   }, /* R7: Standard MIDI Controller 86 */
+    { n:'Chorus',   cc:93,  col:'c-gray'   }  /* R8: Chorus depth (CC93) */
+  ],
+  /* Bank 2: R9–R16 — geen fabriekinstellingen, vrij programmeerbaar */
+  [
+    { n:'R9',   cc:null, col:'c2-1' }, /* R9:  vrij */
+    { n:'R10',  cc:null, col:'c2-2' }, /* R10: vrij */
+    { n:'R11',  cc:null, col:'c2-3' }, /* R11: vrij */
+    { n:'R12',  cc:null, col:'c2-4' }, /* R12: vrij */
+    { n:'R13',  cc:null, col:'c2-5' }, /* R13: vrij */
+    { n:'R14',  cc:null, col:'c2-6' }, /* R14: vrij */
+    { n:'R15',  cc:null, col:'c2-7' }, /* R15: vrij */
+    { n:'R16',  cc:null, col:'c2-8' }  /* R16: vrij */
+  ]
 ];
 
-/* ── ENCODER TOESTANDSVARIABELEN ─────────────────────────────────
-   encVals  = huidige waarden (0-127) per encoder
-   encLearn = index van encoder in learn-modus (null = geen)
-   encMap   = {cc-nummer: encoder-index} voor snelle lookup */
-var encVals  = [64, 64, 64, 64, 64, 64, 64, 64]; /* Start allemaal op 64 (midden) */
-var encLearn = null;   /* Geen learn-modus bij opstart */
-var encMap   = {};     /* Wordt gevuld door initEncMap() */
+/* ── ENCODER TOESTAND ────────────────────────────────────────────
+   encBank  = actieve bank (0 = R1-R8, 1 = R9-R16)
+   encVals  = waarden per bank [bank0[0..7], bank1[0..7]]
+   encLearn = null of {bankIdx, encIdx}
+   encMap   = [map voor bank0, map voor bank1] */
+var encBank  = 0;
+var encVals  = [[64,64,64,64,64,64,64,64],[64,64,64,64,64,64,64,64]];
+var encLearn = null;
+var encMaps  = [{},{}];
 
-/* ── MIDI VARIABELEN ─────────────────────────────────────────────*/
-var mAcc = null;   /* MIDIAccess object */
-var mIns = [];     /* Lijst MIDI invoerapparaten */
-var actIn = null;  /* Geselecteerd MIDI invoerapparaat */
+/* ── WIZARD TOESTAND ─────────────────────────────────────────────*/
+var wizActive = false; /* Is de wizard open? */
+var wizStep   = 0;     /* Huidige encoder-stap (0-7) */
+var wizBank   = 0;     /* Welke bank wordt geprogrammeerd */
+var wizGotCC  = null;  /* CC-nummer dat binnenkwam tijdens deze stap */
 
-/* ── GELUID PROFIELEN ────────────────────────────────────────────
-   t = golfvorm, a = attack, d = decay, s = sustain, r = release
-   h = harmonischen, dt = detune */
+/* ── MIDI ────────────────────────────────────────────────────────*/
+var mAcc=null, mIns=[], actIn=null;
+
+/* ── GELUIDSPROFIELEN ────────────────────────────────────────────*/
 var PRF = {
-  pi: { t:'triangle',  a:.005, d:.3,  s:.4,  r:.8,  h:[1,.5,.25,.12,.06], dt:0  },
-  or: { t:'sine',      a:.01,  d:0,   s:1,   r:.1,  h:[1,.8,.6,.3],       dt:0  },
-  gu: { t:'sawtooth',  a:.003, d:.15, s:.3,  r:.4,  h:[1,.6,.3,.15],      dt:2  },
-  st: { t:'sawtooth',  a:.09,  d:.1,  s:.8,  r:.6,  h:[1,.7,.3,.1],       dt:6  },
-  br: { t:'sawtooth',  a:.04,  d:.08, s:.9,  r:.2,  h:[1,.6,.4,.2],       dt:3  },
-  sy: { t:'sawtooth',  a:.01,  d:.1,  s:.7,  r:.3,  h:[1,.5,.33,.25],     dt:0  },
-  ba: { t:'triangle',  a:.005, d:.2,  s:.5,  r:.3,  h:[1,.8,.2,.08],      dt:1  },
-  pa: { t:'sine',      a:.22,  d:.1,  s:.9,  r:.9,  h:[1,.6,.3,.15],      dt:9  }
+  pi:{t:'triangle', a:.005,d:.3, s:.4, r:.8, h:[1,.5,.25,.12,.06],dt:0},
+  or:{t:'sine',     a:.01, d:0,  s:1,  r:.1, h:[1,.8,.6,.3],      dt:0},
+  gu:{t:'sawtooth', a:.003,d:.15,s:.3, r:.4, h:[1,.6,.3,.15],     dt:2},
+  st:{t:'sawtooth', a:.09, d:.1, s:.8, r:.6, h:[1,.7,.3,.1],      dt:6},
+  br:{t:'sawtooth', a:.04, d:.08,s:.9, r:.2, h:[1,.6,.4,.2],      dt:3},
+  sy:{t:'sawtooth', a:.01, d:.1, s:.7, r:.3, h:[1,.5,.33,.25],    dt:0},
+  ba:{t:'triangle', a:.005,d:.2, s:.5, r:.3, h:[1,.8,.2,.08],     dt:1},
+  pa:{t:'sine',     a:.22, d:.1, s:.9, r:.9, h:[1,.6,.3,.15],     dt:9}
 };
-
-/* Kies het geluidsprofiel op basis van het GM programmanummer */
-function gP(i) {
-  i = +i;
-  if (i <= 7)              return PRF.pi;
-  if (i >= 16 && i <= 23) return PRF.or;
-  if (i >= 24 && i <= 31) return PRF.gu;
-  if (i >= 32 && i <= 39) return PRF.ba;
-  if (i >= 40 && i <= 55) return PRF.st;
-  if (i >= 56 && i <= 63) return PRF.br;
-  if (i >= 80 && i <= 87) return PRF.sy;
-  if (i >= 88 && i <= 95) return PRF.pa;
+function gP(i){
+  i=+i;
+  if(i<=7)         return PRF.pi;
+  if(i>=16&&i<=23) return PRF.or;
+  if(i>=24&&i<=31) return PRF.gu;
+  if(i>=32&&i<=39) return PRF.ba;
+  if(i>=40&&i<=55) return PRF.st;
+  if(i>=56&&i<=63) return PRF.br;
+  if(i>=80&&i<=87) return PRF.sy;
+  if(i>=88&&i<=95) return PRF.pa;
   return PRF.pi;
 }
+function m2f(n){return 440*Math.pow(2,(n-69)/12);}
 
-/* Zet MIDI-nootnummer om naar frequentie in Hz */
-function m2f(n) { return 440 * Math.pow(2, (n - 69) / 12); }
+/* ── AUDIO ───────────────────────────────────────────────────────*/
+function iA(){if(aC)return;aC=new(window.AudioContext||window.webkitAudioContext)();mG=aC.createGain();mG.gain.value=vol;mG.connect(aC.destination);}
+function rA(){if(aC&&aC.state==='suspended')aC.resume();}
 
-/* ── AUDIO CONTEXT ───────────────────────────────────────────────*/
-function iA() {
-  if (aC) return;
-  aC = new (window.AudioContext || window.webkitAudioContext)();
-  mG = aC.createGain();
-  mG.gain.value = vol;
-  mG.connect(aC.destination);
+/* ── NOTEN ───────────────────────────────────────────────────────*/
+function nOn(mn,v,hw){
+  iA();rA();nOf(mn,true);
+  var p=gP(instr),freq=m2f(mn)*Math.pow(2,pb/12),vv=(v/127)*vol,g=aC.createGain(),now=aC.currentTime;
+  var fl=aC.createBiquadFilter();fl.type='lowpass';fl.frequency.value=Math.min(3800+mn*32,17000);fl.Q.value=.7;fl.connect(g);g.connect(mG);
+  g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(vv,now+p.a);g.gain.linearRampToValueAtTime(vv*p.s,now+p.a+p.d);
+  var os=p.h.map(function(amp,i){var o=aC.createOscillator(),hg=aC.createGain();o.type=p.t;o.frequency.value=freq*(i+1);o.detune.value=(i%2?1:-1)*p.dt*i;hg.gain.value=amp;o.connect(hg);hg.connect(fl);o.start(now);return o;});
+  aN[mn]={g:g,os:os,p:p};kviz(mn,true);flash();
+  document.getElementById('noteTxt').textContent=(hw?'[HW] ':'')+NN[mn%12]+(Math.floor(mn/12)-1)+' · MIDI '+mn;
 }
-function rA() { if (aC && aC.state === 'suspended') aC.resume(); }
-
-/* ── NOOT AAN ────────────────────────────────────────────────────
-   Speel een noot af.
-   mn = MIDI-nootnummer, v = velocity, hw = van hardware */
-function nOn(mn, v, hw) {
-  iA(); rA();
-  nOf(mn, true);
-
-  var p    = gP(instr);
-  var freq = m2f(mn) * Math.pow(2, pb / 12);
-  var vv   = (v / 127) * vol;
-  var g    = aC.createGain();
-  var now  = aC.currentTime;
-
-  var fl = aC.createBiquadFilter();
-  fl.type            = 'lowpass';
-  fl.frequency.value = Math.min(3800 + mn * 32, 17000);
-  fl.Q.value         = .7;
-  fl.connect(g);
-  g.connect(mG);
-
-  g.gain.setValueAtTime(0, now);
-  g.gain.linearRampToValueAtTime(vv, now + p.a);
-  g.gain.linearRampToValueAtTime(vv * p.s, now + p.a + p.d);
-
-  var os = p.h.map(function(amp, i) {
-    var o  = aC.createOscillator();
-    var hg = aC.createGain();
-    o.type            = p.t;
-    o.frequency.value = freq * (i + 1);
-    o.detune.value    = (i % 2 ? 1 : -1) * p.dt * i;
-    hg.gain.value     = amp;
-    o.connect(hg);
-    hg.connect(fl);
-    o.start(now);
-    return o;
-  });
-
-  aN[mn] = { g: g, os: os, p: p };
-  kviz(mn, true);
-  flash();
-
-  document.getElementById('noteTxt').textContent =
-    (hw ? '[HW] ' : '') + NN[mn % 12] + (Math.floor(mn / 12) - 1) + ' · MIDI ' + mn;
+function nOf(mn,force){
+  if(!aN[mn])return;if(sus&&!force){susH[mn]=true;return;}
+  var x=aN[mn],now=aC?aC.currentTime:0;
+  x.g.gain.cancelScheduledValues(now);x.g.gain.setValueAtTime(x.g.gain.value,now);x.g.gain.linearRampToValueAtTime(0,now+x.p.r);
+  x.os.forEach(function(o){try{o.stop(now+x.p.r+.05);}catch(e){}});
+  delete aN[mn];kviz(mn,false);
 }
+function allOf(){Object.keys(aN).forEach(function(n){nOf(+n,true);});susH={};}
+function kviz(mn,on){var e=document.querySelector('[data-m="'+(mn-tr)+'"]');if(e)e.classList.toggle('on',on);}
 
-/* ── NOOT UIT ────────────────────────────────────────────────────*/
-function nOf(mn, force) {
-  if (!aN[mn]) return;
-  if (sus && !force) { susH[mn] = true; return; }
-
-  var x   = aN[mn];
-  var now = aC ? aC.currentTime : 0;
-
-  x.g.gain.cancelScheduledValues(now);
-  x.g.gain.setValueAtTime(x.g.gain.value, now);
-  x.g.gain.linearRampToValueAtTime(0, now + x.p.r);
-
-  x.os.forEach(function(o) {
-    try { o.stop(now + x.p.r + .05); } catch(e) {}
-  });
-
-  delete aN[mn];
-  kviz(mn, false);
+/* ── ZOOM ────────────────────────────────────────────────────────*/
+function applyZoom(){
+  var z=ZOOM_LEVELS[zoomIdx];
+  var ww=Math.round(WW*z),wh=Math.round(WH*z),bw=Math.round(BW*z),bh=Math.round(BH*z);
+  document.documentElement.style.setProperty('--zoom',z);
+  var lbl=document.getElementById('zoomLbl');if(lbl)lbl.textContent=z===1?'1×':z===1.5?'1.5×':'2×';
+  var bo=document.getElementById('zoomOut'),bi=document.getElementById('zoomIn');
+  if(bo)bo.disabled=(zoomIdx===0);if(bi)bi.disabled=(zoomIdx===ZOOM_LEVELS.length-1);
+  localStorage.setItem('vk-zoom',zoomIdx);
+  var c=MC[mdl];buildKB(c.n,c.s+octOff*12,ww,wh,bw,bh);
 }
+function chZoom(d){zoomIdx=Math.max(0,Math.min(ZOOM_LEVELS.length-1,zoomIdx+d));applyZoom();}
 
-/* Stop alle actieve noten */
-function allOf() {
-  Object.keys(aN).forEach(function(n) { nOf(+n, true); });
-  susH = {};
-}
-
-/* Licht een piano-toets op of uit */
-function kviz(mn, on) {
-  var e = document.querySelector('[data-m="' + (mn - tr) + '"]');
-  if (e) e.classList.toggle('on', on);
-}
-
-/* ── ZOOM FUNCTIES (v2.2) ────────────────────────────────────────*/
-function applyZoom() {
-  var z = ZOOM_LEVELS[zoomIdx];
-
-  var ww = Math.round(WW * z);
-  var wh = Math.round(WH * z);
-  var bw = Math.round(BW * z);
-  var bh = Math.round(BH * z);
-
-  document.documentElement.style.setProperty('--zoom', z);
-
-  var lbl = document.getElementById('zoomLbl');
-  if (lbl) lbl.textContent = z === 1 ? '1×' : z === 1.5 ? '1.5×' : '2×';
-
-  var btnOut = document.getElementById('zoomOut');
-  if (btnOut) btnOut.disabled = (zoomIdx === 0);
-
-  var btnIn = document.getElementById('zoomIn');
-  if (btnIn) btnIn.disabled = (zoomIdx === ZOOM_LEVELS.length - 1);
-
-  localStorage.setItem('vk-zoom', zoomIdx);
-
-  var c = MC[mdl];
-  var s = c.s + octOff * 12;
-  buildKB(c.n, s, ww, wh, bw, bh);
-}
-
-/* Verander zoom-niveau met d stappen (+1 of -1) */
-function chZoom(d) {
-  zoomIdx = Math.max(0, Math.min(ZOOM_LEVELS.length - 1, zoomIdx + d));
-  applyZoom();
-}
-
-/* ── PIANO BOUWEN ────────────────────────────────────────────────
-   n = aantal toetsen, s = startende MIDI-nootnummer
-   ww/wh/bw/bh = optionele afmetingen */
-function buildKB(n, s, ww, wh, bw, bh) {
-  var z = ZOOM_LEVELS[zoomIdx];
-  ww = ww || Math.round(WW * z);
-  wh = wh || Math.round(WH * z);
-  bw = bw || Math.round(BW * z);
-  bh = bh || Math.round(BH * z);
-
-  var kb = document.getElementById('kb');
-  kb.innerHTML = '';
-  kb.style.height = wh + 'px';
-
-  var wc = 0;
-  var ks = [];
-
-  for (var i = 0; i < n; i++) {
-    var m  = s + i;
-    var ni = m % 12;
-    var ib = !!BP[ni];
-    if (!ib) wc++;
-    ks.push({ m: m, ni: ni, ib: ib });
-  }
-
-  kb.style.width = (wc * ww) + 'px';
-
-  var wx = 0;
-
-  ks.forEach(function(k) {
-    var el = document.createElement('div');
-    el.dataset.m = k.m;
-
-    if (!k.ib) {
-      el.className = 'wk';
-      el.style.cssText = 'left:' + wx + 'px;width:' + ww + 'px;height:' + wh + 'px;';
-
-      if (NN[k.ni] === 'C') {
-        var lb = document.createElement('span');
-        lb.className   = 'k-lbl';
-        lb.textContent = 'C' + (Math.floor(k.m / 12) - 1);
-        el.appendChild(lb);
-      }
-      wx += ww;
-    } else {
-      el.className = 'bk';
-      el.style.cssText = 'left:' + (wx - bw * .6) + 'px;width:' + bw + 'px;height:' + bh + 'px;top:0;';
-    }
-
-    el.addEventListener('touchstart', function(e) { e.preventDefault(); kDn(k.m); }, { passive: false });
-    el.addEventListener('touchend',   function(e) { e.preventDefault(); kUp(k.m); }, { passive: false });
-    el.addEventListener('mousedown',  function(e) { e.preventDefault(); kDn(k.m); });
-    el.addEventListener('mouseup',    function()  { kUp(k.m); });
-    el.addEventListener('mouseleave', function()  { if (aN[k.m + tr]) kUp(k.m); });
-
+/* ── PIANO ───────────────────────────────────────────────────────*/
+function buildKB(n,s,ww,wh,bw,bh){
+  var z=ZOOM_LEVELS[zoomIdx];
+  ww=ww||Math.round(WW*z);wh=wh||Math.round(WH*z);bw=bw||Math.round(BW*z);bh=bh||Math.round(BH*z);
+  var kb=document.getElementById('kb');kb.innerHTML='';kb.style.height=wh+'px';
+  var wc=0,ks=[];
+  for(var i=0;i<n;i++){var m=s+i,ni=m%12,ib=!!BP[ni];if(!ib)wc++;ks.push({m:m,ni:ni,ib:ib});}
+  kb.style.width=(wc*ww)+'px';var wx=0;
+  ks.forEach(function(k){
+    var el=document.createElement('div');el.dataset.m=k.m;
+    if(!k.ib){
+      el.className='wk';el.style.cssText='left:'+wx+'px;width:'+ww+'px;height:'+wh+'px;';
+      if(NN[k.ni]==='C'){var lb=document.createElement('span');lb.className='k-lbl';lb.textContent='C'+(Math.floor(k.m/12)-1);el.appendChild(lb);}
+      wx+=ww;
+    }else{el.className='bk';el.style.cssText='left:'+(wx-bw*.6)+'px;width:'+bw+'px;height:'+bh+'px;top:0;';}
+    el.addEventListener('touchstart',function(e){e.preventDefault();kDn(k.m);},{passive:false});
+    el.addEventListener('touchend',  function(e){e.preventDefault();kUp(k.m);},{passive:false});
+    el.addEventListener('mousedown', function(e){e.preventDefault();kDn(k.m);});
+    el.addEventListener('mouseup',   function(){kUp(k.m);});
+    el.addEventListener('mouseleave',function(){if(aN[k.m+tr])kUp(k.m);});
     kb.appendChild(el);
   });
 }
+function kDn(m){var f=m+tr;if(f>=0&&f<=127)nOn(f,vel,false);}
+function kUp(m){nOf(m+tr);document.getElementById('noteTxt').textContent='— speel een toets —';}
 
-/* Noot AAN via piano-toets klik */
-function kDn(m) {
-  var f = m + tr;
-  if (f >= 0 && f <= 127) nOn(f, vel, false);
+/* ── ENCODER BANK WISSELEN ───────────────────────────────────────
+   Wissel de weergegeven encoder-bank: R1-R8 of R9-R16 */
+function switchEncBank() {
+  encBank = encBank ? 0 : 1; /* Toggle: 0→1 of 1→0 */
+  updateEncBankUI();          /* Update de badge en knop-tekst */
+  buildEncoders();            /* Herbouw de 8 encoder-blokken voor de nieuwe bank */
+  buildCCSlots();             /* Herbouw de CC debug slots voor de nieuwe bank */
 }
 
-/* Noot UIT bij loslaten piano-toets */
-function kUp(m) {
-  nOf(m + tr);
-  document.getElementById('noteTxt').textContent = '— speel een toets —';
-}
-
-/* ── CC DEBUG MONITOR (v2.3) ─────────────────────────────────────
-   Bouw de 8 mini-blokjes in de debug-balk */
-function buildCCSlots() {
-  var g = document.getElementById('ccSlots');
-  g.innerHTML = ''; /* Leegmaken */
-
-  ENC_DEF.forEach(function(e, i) {
-    var slot = document.createElement('div');
-    slot.className = 'cc-slot';
-    slot.id        = 'ccSlot' + i; /* ID: ccSlot0 t/m ccSlot7 */
-
-    /* R1, R2... label */
-    var lbl = document.createElement('div');
-    lbl.className   = 'cc-slot-lbl';
-    lbl.textContent = 'R' + (i + 1);
-
-    /* CC-nummer */
-    var cc = document.createElement('div');
-    cc.className   = 'cc-slot-cc';
-    cc.id          = 'ccSlotCC' + i;
-    cc.textContent = 'CC' + e.cc; /* Start met de standaard waarde */
-
-    /* Waarde (0-127) */
-    var val = document.createElement('div');
-    val.className   = 'cc-slot-val';
-    val.id          = 'ccSlotVal' + i;
-    val.textContent = '—'; /* Nog geen waarde ontvangen */
-
-    slot.appendChild(lbl);
-    slot.appendChild(cc);
-    slot.appendChild(val);
-    g.appendChild(slot);
-  });
-}
-
-/* Update één CC-slot als er een bericht binnenkomt.
-   slotIdx = 0-7 (of -1 als het CC-nummer onbekend is)
-   ccNum   = het CC-nummer dat binnenkwam
-   ccVal   = de waarde (0-127) */
-function updateCCSlot(slotIdx, ccNum, ccVal) {
-  /* Update de grote live-tekst altijd */
-  var live = document.getElementById('ccLive');
-  if (live) {
-    var naam = slotIdx >= 0 ? (' → ' + ENC_DEF[slotIdx].n + ' (R' + (slotIdx+1) + ')') : ' (ONBEKEND)';
-    live.textContent = 'Laatste: CC' + ccNum + ' = ' + ccVal + naam;
-  }
-
-  if (slotIdx < 0) return; /* Onbekend CC-nummer: geen slot bijwerken */
-
-  /* Update het CC-slot blokje */
-  var slotCC  = document.getElementById('ccSlotCC'  + slotIdx);
-  var slotVal = document.getElementById('ccSlotVal' + slotIdx);
-  var slot    = document.getElementById('ccSlot'    + slotIdx);
-
-  if (slotCC)  slotCC.textContent  = 'CC' + ccNum;
-  if (slotVal) slotVal.textContent = ccVal;
-
-  /* Laat het blokje even oplichten */
-  if (slot) {
-    slot.classList.add('active');
-    clearTimeout(slot._t);
-    slot._t = setTimeout(function() { slot.classList.remove('active'); }, 300);
+/* Update de bank-badge en wissel-knop tekst */
+function updateEncBankUI() {
+  var badge = document.getElementById('encBankBadge');
+  var btn   = document.getElementById('encBankBtn');
+  if (encBank === 0) {
+    badge.textContent = 'Bank 1 · R1–R8';
+    badge.className   = 'enc-bank-badge b1';
+    btn.textContent   = 'Wissel → R9–R16';
+    btn.className     = 'btn';
+  } else {
+    badge.textContent = 'Bank 2 · R9–R16';
+    badge.className   = 'enc-bank-badge b2';
+    btn.textContent   = 'Wissel → R1–R8';
+    btn.className     = 'btn bank2on';
   }
 }
 
-/* Toon of verberg de CC debug monitor balk */
-function toggleDebug() {
-  var bar = document.getElementById('ccDebug');
-  var btn = document.getElementById('debugToggleBtn');
-  var hidden = bar.classList.toggle('hidden'); /* Wissel de hidden klasse */
-  btn.textContent = hidden ? 'Toon CC Monitor' : 'Verberg';
-  /* Als de balk verborgen is, toon dan een knopje bovenaan de encoder-balk */
-  document.getElementById('showDebugBtn').style.display = hidden ? 'inline-block' : 'none';
-}
-
-/* ── ENCODER FUNCTIES ────────────────────────────────────────────*/
-
-/* Bouw de standaard CC→encoder koppelingsmap.
-   Resultaat: encMap[74] = 0, encMap[71] = 1, etc. */
-function initEncMap() {
-  encMap = {};
-  ENC_DEF.forEach(function(e, i) {
-    encMap[e.cc] = i; /* CC-nummer → encoder-index */
+/* ── CC MAP INITIALISATIE ────────────────────────────────────────
+   Bouw beide CC-maps: bankIndex 0 en 1 */
+function initEncMaps() {
+  encMaps = [{},{}]; /* Beide maps leegmaken */
+  ENC_BANKS.forEach(function(bank, bi) {
+    bank.forEach(function(e, i) {
+      if (e.cc !== null) encMaps[bi][e.cc] = i; /* CC → encoder index */
+    });
   });
-  /* Log de map zodat je in de console kunt controleren */
-  console.log('[VersaKey] Encoder CC-map:', JSON.stringify(encMap));
+  console.log('[VersaKey] Bank 1 CC-map:', JSON.stringify(encMaps[0]));
+  console.log('[VersaKey] Bank 2 CC-map:', JSON.stringify(encMaps[1]));
 }
 
-/* Bouw het HTML-raster van 8 encoder-blokken */
+/* ── ENCODER BLOKKEN BOUWEN ──────────────────────────────────────
+   Bouw 8 encoder-blokken voor de actieve bank */
 function buildEncoders() {
   var g = document.getElementById('encGrid');
   g.innerHTML = '';
+  var bankDef = ENC_BANKS[encBank]; /* Definitie van de actieve bank */
+  var isB2    = encBank === 1;      /* Is dit bank 2? */
 
-  ENC_DEF.forEach(function(e, i) {
+  bankDef.forEach(function(e, i) {
+    var rNum = encBank * 8 + i + 1; /* R1-R8 of R9-R16 */
+
     var cell = document.createElement('div');
-    cell.className = 'enc-cell';
+    cell.className = 'enc-cell' + (isB2 ? ' bank2' : '');
     cell.id        = 'enc' + i;
 
-    /* Bovenste rij: R-nummer links, CC-badge rechts */
+    /* Bovenste rij: R-nummer + CC-badge */
     var head = document.createElement('div');
     head.className = 'enc-head';
 
-    /* R1, R2 ... R8 label */
     var rnum = document.createElement('span');
-    rnum.className   = 'enc-rnum';
-    rnum.textContent = 'R' + (i + 1);
+    rnum.className   = 'enc-rnum' + (isB2 ? ' bank2' : '');
+    rnum.textContent = 'R' + rNum;
 
-    /* CC-nummer badge */
     var cc = document.createElement('span');
-    cc.className   = 'enc-cc';
+    cc.className   = 'enc-cc' + (isB2 ? ' bank2' : '');
     cc.id          = 'encCC' + i;
-    cc.textContent = 'CC' + e.cc;
-    cc.title       = 'Klik → MIDI Learn voor R' + (i + 1) + '. Draai daarna de knop op de VersaKey.';
+    cc.textContent = e.cc !== null ? 'CC' + e.cc : '—';
+    cc.title       = 'Klik → MIDI Learn voor R' + rNum;
     cc.addEventListener('click', function() { ccLearn(i); });
 
     head.appendChild(rnum);
     head.appendChild(cc);
 
-    /* Parameter naam */
+    /* Naam (bewerkbaar voor bank 2) */
     var nm = document.createElement('span');
     nm.className   = 'enc-name';
     nm.id          = 'encName' + i;
     nm.textContent = e.n;
 
-    /* Meter-balk achtergrond */
+    /* Meter-balk */
     var track = document.createElement('div');
     track.className = 'enc-track';
-
     var fill = document.createElement('div');
     fill.className = 'enc-fill ' + e.col;
     fill.id        = 'encFill' + i;
-    fill.style.width = Math.round(encVals[i] / 127 * 100) + '%';
-
+    fill.style.width = Math.round(encVals[encBank][i] / 127 * 100) + '%';
     track.appendChild(fill);
 
-    /* Waarde getal — v2.3: altijd zichtbaar, groter, vetgedrukt */
+    /* Waarde */
     var val = document.createElement('div');
     val.className   = 'enc-val';
     val.id          = 'encVal' + i;
-    val.textContent = encVals[i]; /* Start op 64 */
+    val.textContent = encVals[encBank][i];
 
-    /* Alles samenvoegen */
     cell.appendChild(head);
     cell.appendChild(nm);
     cell.appendChild(track);
@@ -1522,674 +856,519 @@ function buildEncoders() {
   });
 }
 
-/* Update de visuele balk en getal van één encoder.
-   i = encoder-index (0-7), v = CC-waarde (0-127) */
+/* Update balk + getal van één encoder in de actieve bank */
 function updEncoder(i, v) {
-  encVals[i] = v;
-
+  encVals[encBank][i] = v;
   var fill = document.getElementById('encFill' + i);
   if (fill) fill.style.width = Math.round(v / 127 * 100) + '%';
-
   var val = document.getElementById('encVal' + i);
   if (val) val.textContent = v;
 }
 
-/* Start MIDI Learn voor encoder i */
+/* ── CC DEBUG MONITOR ────────────────────────────────────────────*/
+function buildCCSlots() {
+  var g = document.getElementById('ccSlots');
+  g.innerHTML = '';
+  var bankDef = ENC_BANKS[encBank];
+
+  bankDef.forEach(function(e, i) {
+    var rNum = encBank * 8 + i + 1;
+    var slot = document.createElement('div');
+    slot.className = 'cc-slot'; slot.id = 'ccSlot' + i;
+    var lbl = document.createElement('div'); lbl.className='cc-slot-lbl'; lbl.textContent='R'+rNum;
+    var cc  = document.createElement('div'); cc.className='cc-slot-cc';  cc.id='ccSlotCC'+i;
+    cc.textContent = e.cc !== null ? 'CC'+e.cc : '—';
+    var val = document.createElement('div'); val.className='cc-slot-val'; val.id='ccSlotVal'+i;
+    val.textContent = '—';
+    slot.appendChild(lbl); slot.appendChild(cc); slot.appendChild(val);
+    g.appendChild(slot);
+  });
+}
+
+function updateCCSlot(slotIdx, ccNum, ccVal) {
+  var live = document.getElementById('ccLive');
+  var bankDef = ENC_BANKS[encBank];
+  if (live) {
+    var naam = slotIdx >= 0 ? (' → ' + bankDef[slotIdx].n + ' (R' + (encBank*8+slotIdx+1) + ')') : ' (niet gekoppeld in actieve bank)';
+    live.textContent = 'Laatste: CC' + ccNum + ' = ' + ccVal + naam;
+  }
+  if (slotIdx < 0) return;
+  var slotCC  = document.getElementById('ccSlotCC'  + slotIdx);
+  var slotVal = document.getElementById('ccSlotVal' + slotIdx);
+  var slot    = document.getElementById('ccSlot'    + slotIdx);
+  if (slotCC)  slotCC.textContent  = 'CC' + ccNum;
+  if (slotVal) slotVal.textContent = ccVal;
+  if (slot) { slot.classList.add('active'); clearTimeout(slot._t); slot._t=setTimeout(function(){slot.classList.remove('active');},300); }
+}
+
+function toggleDebug() {
+  var bar = document.getElementById('ccDebug');
+  var btn = document.getElementById('debugToggleBtn');
+  var h = bar.classList.toggle('hidden');
+  btn.textContent = h ? 'CC Monitor' : 'Verberg';
+}
+
+/* ── MIDI LEARN ──────────────────────────────────────────────────*/
 function ccLearn(i) {
   var statusEl = document.getElementById('encLearnStatus');
-
-  /* Als dezelfde encoder al in learn staat: uitzetten */
-  if (encLearn === i) {
-    stopLearn();
-    return;
+  if (encLearn !== null && encLearn.encIdx === i && encLearn.bankIdx === encBank) {
+    stopLearn(); return;
   }
-
-  /* Stop eventuele vorige learn-sessie */
   if (encLearn !== null) stopLearn(true);
-
-  encLearn = i;
-
+  encLearn = { bankIdx: encBank, encIdx: i };
   var cell = document.getElementById('enc' + i);
   var cc   = document.getElementById('encCC' + i);
   if (cell) cell.classList.add('learning');
   if (cc)   cc.classList.add('learn-active');
-
-  statusEl.textContent = '👂 R' + (i + 1) + ' wacht... draai nu de encoder op je VersaKey';
+  var rNum = encBank * 8 + i + 1;
+  statusEl.textContent = '👂 R' + rNum + ' wacht... draai de encoder op je VersaKey';
   statusEl.classList.add('active');
-
-  console.log('[VersaKey] Learn-modus gestart voor R' + (i+1) + ' (encoder index ' + i + ')');
 }
 
-/* Stop de huidige learn-sessie */
 function stopLearn(silent) {
-  if (encLearn === null) return;
-
-  var i    = encLearn;
+  if (!encLearn) return;
+  var i    = encLearn.encIdx;
   var cell = document.getElementById('enc' + i);
   var cc   = document.getElementById('encCC' + i);
-
   if (cell) cell.classList.remove('learning');
   if (cc)   cc.classList.remove('learn-active');
-
   encLearn = null;
-
   if (!silent) {
-    var statusEl = document.getElementById('encLearnStatus');
-    statusEl.textContent = '— klik CC-badge om te leren —';
-    statusEl.classList.remove('active');
+    var s = document.getElementById('encLearnStatus');
+    s.textContent = '— klik CC-badge om te leren —';
+    s.classList.remove('active');
   }
 }
 
-/* Verwerk een geleerd CC-nummer voor de actieve encoder */
-function finishLearn(newCC) {
-  var i     = encLearn;
-  var oldCC = ENC_DEF[i].cc;
+function finishLearn(newCC, fromWizard) {
+  if (!encLearn) return;
+  var bi = encLearn.bankIdx;
+  var i  = encLearn.encIdx;
+  var oldCC = ENC_BANKS[bi][i].cc;
 
-  /* Verwijder de oude CC-koppeling */
-  delete encMap[oldCC];
+  /* Verwijder oude koppeling */
+  if (oldCC !== null) delete encMaps[bi][oldCC];
 
-  /* Schrijf de nieuwe koppeling */
-  ENC_DEF[i].cc = newCC;
-  encMap[newCC]  = i;
+  /* Schrijf nieuwe koppeling */
+  ENC_BANKS[bi][i].cc = newCC;
+  encMaps[bi][newCC]  = i;
 
-  /* Update de CC-badge in de UI */
-  var ccEl = document.getElementById('encCC' + i);
-  if (ccEl) ccEl.textContent = 'CC' + newCC;
+  /* Update UI: CC-badge */
+  if (bi === encBank) {
+    var ccEl = document.getElementById('encCC' + i);
+    if (ccEl) { ccEl.textContent = 'CC' + newCC; }
+    var slotCC = document.getElementById('ccSlotCC' + i);
+    if (slotCC) slotCC.textContent = 'CC' + newCC;
+  }
 
-  /* Update ook het CC-slot in de debug monitor */
-  var slotCC = document.getElementById('ccSlotCC' + i);
-  if (slotCC) slotCC.textContent = 'CC' + newCC;
+  var rNum = bi * 8 + i + 1;
+  console.log('[VersaKey] ✓ R' + rNum + ' geleerd: CC' + newCC + ' (bank ' + (bi+1) + ')');
 
-  console.log('[VersaKey] ✓ R' + (i+1) + ' geleerd: CC' + oldCC + ' → CC' + newCC);
-  console.log('[VersaKey] Nieuwe encoder CC-map:', JSON.stringify(encMap));
-
-  stopLearn();
-
-  var statusEl = document.getElementById('encLearnStatus');
-  statusEl.textContent = '✓ R' + (i+1) + ' = CC' + newCC + ' opgeslagen!';
-  statusEl.classList.add('active');
-
-  setTimeout(function() {
-    statusEl.textContent = '— klik CC-badge om te leren —';
-    statusEl.classList.remove('active');
-  }, 2500);
+  if (!fromWizard) {
+    stopLearn();
+    var s = document.getElementById('encLearnStatus');
+    s.textContent = '✓ R' + rNum + ' = CC' + newCC + ' opgeslagen!';
+    s.classList.add('active');
+    setTimeout(function(){s.textContent='— klik CC-badge om te leren —';s.classList.remove('active');}, 2500);
+  } else {
+    stopLearn(true); /* stil stoppen — wizard neemt het over */
+  }
 }
 
-/* Verwijder alle geleerde koppelingen, herstel standaard */
+/* Reset actieve bank naar fabriekswaarden */
 function resetLearn() {
   stopLearn();
+  var bi = encBank;
 
-  /* Herstel standaard CC-nummers uit het handboek */
-  var defaults = [74, 71, 21, 18, 73, 72, 93, 7];
-  defaults.forEach(function(cc, i) {
-    ENC_DEF[i].cc = cc;
-    var ccEl = document.getElementById('encCC' + i);
-    if (ccEl) ccEl.textContent = 'CC' + cc;
-    /* Update ook de debug-slots */
-    var slotCC = document.getElementById('ccSlotCC' + i);
-    if (slotCC) slotCC.textContent = 'CC' + cc;
-    var slotVal = document.getElementById('ccSlotVal' + i);
-    if (slotVal) slotVal.textContent = '—';
-  });
+  if (bi === 0) {
+    /* Bank 1: fabriekswaarden uit Appendix H */
+    var defs = [131, 7, 92, 81, 91, 67, 86, 93];
+    var names= ['Prog Ch','Volume','Ctrl 92','Ctrl 81','Reverb','Ctrl 67','Ctrl 86','Chorus'];
+    defs.forEach(function(cc, i) {
+      ENC_BANKS[0][i].cc = cc;
+      ENC_BANKS[0][i].n  = names[i];
+    });
+  } else {
+    /* Bank 2: alles wissen */
+    ENC_BANKS[1].forEach(function(e) { e.cc = null; });
+  }
 
-  initEncMap(); /* Herbouw de map */
+  initEncMaps();
+  encVals[bi] = [64,64,64,64,64,64,64,64];
+  for (var i=0; i<8; i++) updEncoder(i,64);
+  buildEncoders();
+  buildCCSlots();
 
-  /* Reset alle waarden naar 64 */
-  encVals = [64, 64, 64, 64, 64, 64, 64, 64];
-  for (var i = 0; i < 8; i++) updEncoder(i, 64);
-
-  /* Reset de live-tekst */
   var live = document.getElementById('ccLive');
-  if (live) live.textContent = '— draai een knop om te zien welk CC binnenkomt —';
+  if (live) live.textContent = '— draai een knop —';
 
-  var statusEl = document.getElementById('encLearnStatus');
-  statusEl.textContent = '↺ Standaard hersteld (CC74,71,21,18,73,72,93,7)';
-  statusEl.classList.add('active');
-  setTimeout(function() {
-    statusEl.textContent = '— klik CC-badge om te leren —';
-    statusEl.classList.remove('active');
-  }, 2500);
-
-  console.log('[VersaKey] Encoder CC-koppelingen gereset naar standaard handboek waarden');
+  var s = document.getElementById('encLearnStatus');
+  s.textContent = bi === 0 ? '↺ Bank 1 hersteld (handboek waarden)' : '↺ Bank 2 gewist';
+  s.classList.add('active');
+  setTimeout(function(){s.textContent='— klik CC-badge om te leren —';s.classList.remove('active');},2500);
+  console.log('[VersaKey] Reset bank ' + (bi+1));
 }
 
-/* ── HELP POPUP ──────────────────────────────────────────────────*/
+/* ── WIZARD ──────────────────────────────────────────────────────
+   Stap-voor-stap programmeerwizard voor alle 8 encoders van de actieve bank */
+function startWizard() {
+  wizActive = true;
+  wizStep   = 0;
+  wizBank   = encBank;
+  wizGotCC  = null;
+
+  /* Bouw voortgang stippen */
+  var prog = document.getElementById('wizProgress');
+  prog.innerHTML = '';
+  for (var k=0; k<8; k++) {
+    var dot = document.createElement('div');
+    dot.className = 'wizard-dot';
+    dot.id        = 'wizDot' + k;
+    prog.appendChild(dot);
+  }
+
+  document.getElementById('wizardOverlay').classList.add('show');
+  wizShowStep(); /* Toon de eerste stap */
+}
+
+/* Toon de huidige wizard-stap */
+function wizShowStep() {
+  var bi      = wizBank;
+  var i       = wizStep;
+  var rNum    = bi * 8 + i + 1;
+  var bankDef = ENC_BANKS[bi][i];
+
+  /* Titel en stap-indicator */
+  document.getElementById('wizTitle').textContent = '🎛️ Bank ' + (bi+1) + ' programmeren';
+  document.getElementById('wizStep').textContent  = 'Stap ' + (i+1) + ' van 8';
+
+  /* Voortgang stippen bijwerken */
+  for (var k=0; k<8; k++) {
+    var dot = document.getElementById('wizDot' + k);
+    if (!dot) continue;
+    dot.className = 'wizard-dot' + (k < i ? ' done' : k === i ? ' current' : '');
+  }
+
+  /* R-nummer en naam */
+  var rnumEl = document.getElementById('wizRnum');
+  rnumEl.textContent = 'R' + rNum;
+  rnumEl.className   = 'wizard-rnum' + (bi === 1 ? ' b2' : '');
+
+  /* Naam invoerveld */
+  document.getElementById('wizNameInput').value = bankDef.n || ('R' + rNum);
+
+  /* CC badge resetten */
+  var badge = document.getElementById('wizCCBadge');
+  badge.textContent = 'wacht...';
+  badge.className   = 'wizard-cc-badge';
+
+  /* Status */
+  document.getElementById('wizStatus').textContent = 'Draai de fysieke knop op je VersaKey 👆';
+  document.getElementById('wizStatus').className   = 'wizard-status';
+
+  /* Volgende-knop uitschakelen totdat CC binnenkomt */
+  document.getElementById('wizNextBtn').disabled = true;
+  wizGotCC = null;
+
+  /* Start MIDI Learn voor deze encoder in de wizard-bank */
+  /* Schakel tijdelijk naar de juiste bank als die niet actief is */
+  if (encBank !== bi) { encBank = bi; updateEncBankUI(); buildEncoders(); buildCCSlots(); }
+  ccLearn(i);
+}
+
+/* Naam bijwerken vanuit het wizard-invoerveld */
+function wizUpdateName(v) {
+  ENC_BANKS[wizBank][wizStep].n = v || ('R' + (wizBank*8+wizStep+1));
+  var nm = document.getElementById('encName' + wizStep);
+  if (nm) nm.textContent = ENC_BANKS[wizBank][wizStep].n;
+}
+
+/* Verwerk een CC-bericht dat binnenkomt tijdens de wizard */
+function wizHandleCC(ccNum, ccVal) {
+  if (!wizActive || wizGotCC !== null) return; /* Alleen eerste bericht accepteren */
+
+  wizGotCC = ccNum;
+
+  /* Toon het ontvangen CC-nummer in de badge */
+  var badge = document.getElementById('wizCCBadge');
+  badge.textContent = 'CC' + ccNum + ' = ' + ccVal;
+  badge.className   = 'wizard-cc-badge got';
+
+  /* Status bijwerken */
+  var rNum = wizBank * 8 + wizStep + 1;
+  var s = document.getElementById('wizStatus');
+  s.textContent = '✓ CC' + ccNum + ' ontvangen voor R' + rNum + '!';
+  s.className   = 'wizard-status ok';
+
+  /* Sla de koppeling direct op */
+  finishLearn(ccNum, true);
+
+  /* Schakel de "Volgende" knop in */
+  document.getElementById('wizNextBtn').disabled = false;
+
+  /* Als dit de laatste encoder was: sluit automatisch */
+  if (wizStep === 7) {
+    document.getElementById('wizNextBtn').textContent = '✓ Klaar! Sluiten';
+  }
+}
+
+/* Volgende encoder in de wizard */
+function wizNext() {
+  if (wizStep < 7) {
+    wizStep++;
+    wizGotCC = null;
+    wizShowStep();
+  } else {
+    wizClose();
+  }
+}
+
+/* Sla huidige encoder over zonder CC te leren */
+function wizSkip() {
+  stopLearn();
+  wizGotCC = null;
+  if (wizStep < 7) {
+    wizStep++;
+    wizShowStep();
+  } else {
+    wizClose();
+  }
+}
+
+/* Sluit wizard netjes af */
+function wizClose() {
+  wizActive = false;
+  stopLearn();
+  document.getElementById('wizardOverlay').classList.remove('show');
+  document.getElementById('wizNextBtn').textContent = '✓ Volgende encoder →';
+  buildEncoders();
+  buildCCSlots();
+  var s = document.getElementById('encLearnStatus');
+  s.textContent = '✓ Wizard voltooid — bank ' + (wizBank+1) + ' geprogrammeerd!';
+  s.classList.add('active');
+  setTimeout(function(){s.textContent='— klik CC-badge om te leren —';s.classList.remove('active');},3000);
+  console.log('[VersaKey] Wizard voltooid voor bank', wizBank+1);
+  console.log('[VersaKey] Bank ' + (wizBank+1) + ' CC-map:', JSON.stringify(encMaps[wizBank]));
+}
+
+function wizCancel() { wizClose(); }
+
+/* ── HELP ────────────────────────────────────────────────────────*/
 function showHelp() { document.getElementById('helpOverlay').classList.add('show'); }
 function hideHelp() { document.getElementById('helpOverlay').classList.remove('show'); }
 
 /* ── DRUM PADS ───────────────────────────────────────────────────*/
 var BANKS = [
-  [
-    { n:'Kick',    m:36, c:'#c0392b' },
-    { n:'Snare',   m:38, c:'#8b6f3a' },
-    { n:'Hi-Hat',  m:42, c:'#2980b9' },
-    { n:'Open HH', m:46, c:'#27ae60' },
-    { n:'Tom L',   m:41, c:'#8e44ad' },
-    { n:'Tom H',   m:50, c:'#d35400' },
-    { n:'Crash',   m:49, c:'#c0392b' },
-    { n:'Ride',    m:51, c:'#16a085' }
-  ],
-  [
-    { n:'Clap',    m:39, c:'#e67e22' },
-    { n:'Rim',     m:37, c:'#2c3e50' },
-    { n:'Tamb',    m:54, c:'#8e44ad' },
-    { n:'Cowbell', m:56, c:'#c0392b' },
-    { n:'Tom M',   m:45, c:'#27ae60' },
-    { n:'Perc1',   m:60, c:'#2980b9' },
-    { n:'Perc2',   m:61, c:'#d35400' },
-    { n:'Splash',  m:55, c:'#16a085' }
-  ]
+  [{n:'Kick',m:36,c:'#c0392b'},{n:'Snare',m:38,c:'#8b6f3a'},{n:'Hi-Hat',m:42,c:'#2980b9'},
+   {n:'Open HH',m:46,c:'#27ae60'},{n:'Tom L',m:41,c:'#8e44ad'},{n:'Tom H',m:50,c:'#d35400'},
+   {n:'Crash',m:49,c:'#c0392b'},{n:'Ride',m:51,c:'#16a085'}],
+  [{n:'Clap',m:39,c:'#e67e22'},{n:'Rim',m:37,c:'#2c3e50'},{n:'Tamb',m:54,c:'#8e44ad'},
+   {n:'Cowbell',m:56,c:'#c0392b'},{n:'Tom M',m:45,c:'#27ae60'},{n:'Perc1',m:60,c:'#2980b9'},
+   {n:'Perc2',m:61,c:'#d35400'},{n:'Splash',m:55,c:'#16a085'}]
 ];
-
-/* Bouw de pad-knoppen */
-function buildPads() {
-  var g = document.getElementById('padsG');
-  g.innerHTML = '';
-
-  BANKS[bank].forEach(function(s, i) {
-    var p  = document.createElement('div');
-    p.className = 'pad';
-
-    var bg = document.createElement('div');
-    bg.className        = 'pad-bg';
-    bg.style.background = s.c;
-    p.appendChild(bg);
-
-    var nm = document.createElement('span');
-    nm.className   = 'pad-name';
-    nm.textContent = s.n;
-    p.appendChild(nm);
-
-    var nb = document.createElement('span');
-    nb.className   = 'pad-n';
-    nb.textContent = (bank * 8 + i + 1);
-    p.appendChild(nb);
-
-    p.addEventListener('touchstart', function(e) { e.preventDefault(); padHit(p, s.m); }, { passive: false });
-    p.addEventListener('mousedown', function() { padHit(p, s.m); });
-
+function buildPads(){
+  var g=document.getElementById('padsG');g.innerHTML='';
+  BANKS[bank].forEach(function(s,i){
+    var p=document.createElement('div');p.className='pad';
+    var bg=document.createElement('div');bg.className='pad-bg';bg.style.background=s.c;p.appendChild(bg);
+    var nm=document.createElement('span');nm.className='pad-name';nm.textContent=s.n;p.appendChild(nm);
+    var nb=document.createElement('span');nb.className='pad-n';nb.textContent=(bank*8+i+1);p.appendChild(nb);
+    p.addEventListener('touchstart',function(e){e.preventDefault();padHit(p,s.m);},{passive:false});
+    p.addEventListener('mousedown',function(){padHit(p,s.m);});
     g.appendChild(p);
   });
 }
-
-/* Wissel tussen pad bank 1-8 en 9-16 */
-function chBank() {
-  bank = bank ? 0 : 1;
-  document.getElementById('bankBtn').textContent = bank ? 'Bank 9–16' : 'Bank 1–8';
-  buildPads();
+function chBank(){bank=bank?0:1;document.getElementById('bankBtn').textContent=bank?'Bank 9–16':'Bank 1–8';buildPads();}
+function padHit(pd,m){iA();rA();pd.classList.add('hit');setTimeout(function(){pd.classList.remove('hit');},110);pDrum(m);flash();}
+function pDrum(m){
+  if(!aC)return;var now=aC.currentTime,g=aC.createGain();g.connect(mG);
+  if(m===36){var o=aC.createOscillator();o.type='sine';o.frequency.setValueAtTime(160,now);o.frequency.exponentialRampToValueAtTime(40,now+.15);g.gain.setValueAtTime(vol,now);g.gain.exponentialRampToValueAtTime(.001,now+.35);o.connect(g);o.start(now);o.stop(now+.36);}
+  else if(m===38||m===39){var b=aC.createBuffer(1,Math.floor(aC.sampleRate*.25),aC.sampleRate),d=b.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length)*.8;var src=aC.createBufferSource();src.buffer=b;var f=aC.createBiquadFilter();f.type='bandpass';f.frequency.value=2000;f.Q.value=.5;src.connect(f);f.connect(g);g.gain.setValueAtTime(vol*.75,now);g.gain.exponentialRampToValueAtTime(.001,now+.25);src.start(now);}
+  else if(m===42||m===46||m===55){var b=aC.createBuffer(1,Math.floor(aC.sampleRate*.15),aC.sampleRate),d=b.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=Math.random()*2-1;var src=aC.createBufferSource();src.buffer=b;var f=aC.createBiquadFilter();f.type='highpass';f.frequency.value=m===46?7000:10000;src.connect(f);f.connect(g);g.gain.setValueAtTime(vol*.45,now);g.gain.exponentialRampToValueAtTime(.001,now+(m===46?.2:.06));src.start(now);}
+  else if(m===49||m===51||m===57){var b=aC.createBuffer(1,Math.floor(aC.sampleRate*.6),aC.sampleRate),d=b.getChannelData(0);for(var i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length*.8);var src=aC.createBufferSource();src.buffer=b;var f=aC.createBiquadFilter();f.type='bandpass';f.frequency.value=m===51?5000:3500;f.Q.value=.3;src.connect(f);f.connect(g);g.gain.setValueAtTime(vol*.5,now);g.gain.exponentialRampToValueAtTime(.001,now+.6);src.start(now);}
+  else{var bf=40+(m-36)*6,o=aC.createOscillator();o.type='sine';o.frequency.setValueAtTime(bf*2,now);o.frequency.exponentialRampToValueAtTime(bf,now+.08);g.gain.setValueAtTime(vol*.7,now);g.gain.exponentialRampToValueAtTime(.001,now+.3);o.connect(g);o.start(now);o.stop(now+.32);}
 }
 
-/* Verwerk een pad-treffer */
-function padHit(pd, m) {
-  iA(); rA();
-  pd.classList.add('hit');
-  setTimeout(function() { pd.classList.remove('hit'); }, 110);
-  pDrum(m);
-  flash();
-}
+/* ── MODEL / OCT / TRANSP / VOL / SUS ───────────────────────────*/
+function setModel(n){mdl=n;['25','49','61','88'].forEach(function(x){document.getElementById('m'+x).classList.toggle('mon',+x===n);});var c=MC[n];buildKB(c.n,c.s+octOff*12);allOf();updOct(c.s+octOff*12);}
+function chOct(d){octOff=Math.max(-3,Math.min(3,octOff+d));var c=MC[mdl],s=c.s+octOff*12;buildKB(c.n,s);allOf();updOct(s);}
+function updOct(s){document.getElementById('octV').textContent=NN[((s%12)+12)%12]+(Math.floor(s/12)-1);}
+function chTr(d){tr=Math.max(-12,Math.min(12,tr+d));document.getElementById('trV').textContent=(tr>0?'+':'')+tr;}
+function chVol(v){vol=v/100;if(mG)mG.gain.value=vol;document.getElementById('volV').textContent=v;}
+function setInstr(v){instr=+v;allOf();}
+function chSus(){sus=!sus;document.getElementById('susBtn').classList.toggle('on',sus);if(!sus){Object.keys(susH).forEach(function(n){nOf(+n,true);});susH={};}}
 
-/* Genereer drumgeluiden via Web Audio */
-function pDrum(m) {
-  if (!aC) return;
-  var now = aC.currentTime;
-  var g   = aC.createGain();
-  g.connect(mG);
+/* ── STRIPS ──────────────────────────────────────────────────────*/
+function sS(e,t){e.preventDefault();sDr[t]=true;sM(e,t);}
+function sM(e,t){if(!sDr[t])return;var el=document.getElementById(t==='p'?'pitchS':'modS'),r=el.getBoundingClientRect(),cy=e.touches?e.touches[0].clientY:e.clientY,ratio=Math.max(0,Math.min(1,(r.bottom-cy)/r.height));if(t==='p'){pb=(ratio-.5)*4;document.getElementById('pitchF').style.height=(ratio*100)+'%';}else{document.getElementById('modF').style.height=(ratio*100)+'%';}}
+function sE(e,t){sDr[t]=false;if(t==='p'){pb=0;document.getElementById('pitchF').style.height='50%';}}
+document.addEventListener('mouseup',function(){sDr={};});
+document.addEventListener('mousemove',function(e){if(sDr.p)sM(e,'p');if(sDr.m)sM(e,'m');});
 
-  if (m === 36) {
-    var o = aC.createOscillator();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(160, now);
-    o.frequency.exponentialRampToValueAtTime(40, now + .15);
-    g.gain.setValueAtTime(vol, now);
-    g.gain.exponentialRampToValueAtTime(.001, now + .35);
-    o.connect(g); o.start(now); o.stop(now + .36);
-  } else if (m === 38 || m === 39) {
-    var b = aC.createBuffer(1, Math.floor(aC.sampleRate * .25), aC.sampleRate);
-    var d = b.getChannelData(0);
-    for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) * .8;
-    var src = aC.createBufferSource(); src.buffer = b;
-    var f = aC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2000; f.Q.value = .5;
-    src.connect(f); f.connect(g);
-    g.gain.setValueAtTime(vol * .75, now);
-    g.gain.exponentialRampToValueAtTime(.001, now + .25);
-    src.start(now);
-  } else if (m === 42 || m === 46 || m === 55) {
-    var b = aC.createBuffer(1, Math.floor(aC.sampleRate * .15), aC.sampleRate);
-    var d = b.getChannelData(0);
-    for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    var src = aC.createBufferSource(); src.buffer = b;
-    var f = aC.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = m === 46 ? 7000 : 10000;
-    src.connect(f); f.connect(g);
-    var dr = m === 46 ? .2 : .06;
-    g.gain.setValueAtTime(vol * .45, now);
-    g.gain.exponentialRampToValueAtTime(.001, now + dr);
-    src.start(now);
-  } else if (m === 49 || m === 51 || m === 57) {
-    var b = aC.createBuffer(1, Math.floor(aC.sampleRate * .6), aC.sampleRate);
-    var d = b.getChannelData(0);
-    for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length * .8);
-    var src = aC.createBufferSource(); src.buffer = b;
-    var f = aC.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = m === 51 ? 5000 : 3500; f.Q.value = .3;
-    src.connect(f); f.connect(g);
-    g.gain.setValueAtTime(vol * .5, now);
-    g.gain.exponentialRampToValueAtTime(.001, now + .6);
-    src.start(now);
-  } else {
-    var bf = 40 + (m - 36) * 6;
-    var o  = aC.createOscillator();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(bf * 2, now);
-    o.frequency.exponentialRampToValueAtTime(bf, now + .08);
-    g.gain.setValueAtTime(vol * .7, now);
-    g.gain.exponentialRampToValueAtTime(.001, now + .3);
-    o.connect(g); o.start(now); o.stop(now + .32);
-  }
-}
-
-/* ── MODEL WISSELEN ──────────────────────────────────────────────*/
-function setModel(n) {
-  mdl = n;
-  ['25','49','61','88'].forEach(function(x) {
-    document.getElementById('m' + x).classList.toggle('mon', +x === n);
-  });
-  var c = MC[n];
-  var s = c.s + octOff * 12;
-  buildKB(c.n, s);
-  allOf();
-  updOct(s);
-}
-
-/* Verander octaaf */
-function chOct(d) {
-  octOff = Math.max(-3, Math.min(3, octOff + d));
-  var c  = MC[mdl];
-  var s  = c.s + octOff * 12;
-  buildKB(c.n, s);
-  allOf();
-  updOct(s);
-}
-
-/* Toon huidig startoctaaf */
-function updOct(s) {
-  document.getElementById('octV').textContent = NN[((s % 12) + 12) % 12] + (Math.floor(s / 12) - 1);
-}
-
-/* Verander transpositie */
-function chTr(d) {
-  tr = Math.max(-12, Math.min(12, tr + d));
-  document.getElementById('trV').textContent = (tr > 0 ? '+' : '') + tr;
-}
-
-/* Verander volume */
-function chVol(v) {
-  vol = v / 100;
-  if (mG) mG.gain.value = vol;
-  document.getElementById('volV').textContent = v;
-}
-
-/* Wissel instrument */
-function setInstr(v) {
-  instr = +v;
-  allOf();
-}
-
-/* Schakel sustain */
-function chSus() {
-  sus = !sus;
-  document.getElementById('susBtn').classList.toggle('on', sus);
-  if (!sus) {
-    Object.keys(susH).forEach(function(n) { nOf(+n, true); });
-    susH = {};
-  }
-}
-
-/* ── TOUCH STRIPS ────────────────────────────────────────────────*/
-function sS(e, t) {
-  e.preventDefault();
-  sDr[t] = true;
-  sM(e, t);
-}
-
-function sM(e, t) {
-  if (!sDr[t]) return;
-  var el    = document.getElementById(t === 'p' ? 'pitchS' : 'modS');
-  var r     = el.getBoundingClientRect();
-  var cy    = e.touches ? e.touches[0].clientY : e.clientY;
-  var ratio = Math.max(0, Math.min(1, (r.bottom - cy) / r.height));
-
-  if (t === 'p') {
-    pb = (ratio - .5) * 4;
-    document.getElementById('pitchF').style.height = (ratio * 100) + '%';
-  } else {
-    document.getElementById('modF').style.height = (ratio * 100) + '%';
-  }
-}
-
-function sE(e, t) {
-  sDr[t] = false;
-  if (t === 'p') {
-    pb = 0;
-    document.getElementById('pitchF').style.height = '50%';
-  }
-}
-
-document.addEventListener('mouseup',   function() { sDr = {}; });
-document.addEventListener('mousemove', function(e) {
-  if (sDr.p) sM(e, 'p');
-  if (sDr.m) sM(e, 'm');
+/* ── COMPUTER TOETSENBORD ────────────────────────────────────────*/
+var KBM={'a':'C','w':'C#','s':'D','e':'D#','d':'E','f':'F','t':'F#','g':'G','y':'G#','h':'A','u':'A#','j':'B','k':'C2','o':'C#2','l':'D2','p':'D#2'};
+var kbP={};
+document.addEventListener('keydown',function(e){
+  if(e.repeat)return;if(['SELECT','INPUT'].includes(e.target.tagName))return;
+  if(e.key===' '){e.preventDefault();chSus();return;}
+  var no=KBM[e.key.toLowerCase()];if(!no||kbP[e.key])return;kbP[e.key]=true;
+  var is2=no.endsWith('2'),nm=is2?no.slice(0,-1):no,ni=NN.indexOf(nm);if(ni<0)return;
+  var s=MC[mdl].s+octOff*12,bo=Math.floor(s/12)-1,mn=(bo+(is2?2:1))*12+ni+tr;
+  if(mn>=0&&mn<=127)nOn(mn,vel,false);
+});
+document.addEventListener('keyup',function(e){
+  var no=KBM[e.key.toLowerCase()];if(!no)return;delete kbP[e.key];
+  var is2=no.endsWith('2'),nm=is2?no.slice(0,-1):no,ni=NN.indexOf(nm);if(ni<0)return;
+  var s=MC[mdl].s+octOff*12,bo=Math.floor(s/12)-1,mn=(bo+(is2?2:1))*12+ni+tr;
+  nOf(mn);document.getElementById('noteTxt').textContent='— speel een toets —';
 });
 
-/* ── COMPUTER TOETSENBORD MAPPING ────────────────────────────────*/
-var KBM = {
-  'a':'C', 'w':'C#', 's':'D', 'e':'D#', 'd':'E', 'f':'F',
-  't':'F#', 'g':'G', 'y':'G#', 'h':'A', 'u':'A#', 'j':'B',
-  'k':'C2', 'o':'C#2', 'l':'D2', 'p':'D#2'
-};
-var kbP = {};
-
-document.addEventListener('keydown', function(e) {
-  if (e.repeat) return;
-  if (['SELECT','INPUT'].includes(e.target.tagName)) return;
-  if (e.key === ' ') { e.preventDefault(); chSus(); return; }
-
-  var no = KBM[e.key.toLowerCase()];
-  if (!no || kbP[e.key]) return;
-  kbP[e.key] = true;
-
-  var is2 = no.endsWith('2');
-  var nm  = is2 ? no.slice(0, -1) : no;
-  var ni  = NN.indexOf(nm);
-  if (ni < 0) return;
-
-  var s  = MC[mdl].s + octOff * 12;
-  var bo = Math.floor(s / 12) - 1;
-  var mn = (bo + (is2 ? 2 : 1)) * 12 + ni + tr;
-  if (mn >= 0 && mn <= 127) nOn(mn, vel, false);
-});
-
-document.addEventListener('keyup', function(e) {
-  var no = KBM[e.key.toLowerCase()];
-  if (!no) return;
-  delete kbP[e.key];
-  var is2 = no.endsWith('2');
-  var nm  = is2 ? no.slice(0, -1) : no;
-  var ni  = NN.indexOf(nm);
-  if (ni < 0) return;
-  var s  = MC[mdl].s + octOff * 12;
-  var bo = Math.floor(s / 12) - 1;
-  var mn = (bo + (is2 ? 2 : 1)) * 12 + ni + tr;
-  nOf(mn);
-  document.getElementById('noteTxt').textContent = '— speel een toets —';
-});
-
-/* ── MIDI VIA WEB MIDI API ───────────────────────────────────────*/
-
-/* Start MIDI verbinding */
-async function initMidi() {
-  var b    = document.getElementById('midiBadge');
-  var l    = document.getElementById('midiLbl');
-  var hint = document.getElementById('usbHint');
-  var hintDetail = document.getElementById('usbHintDetail');
-
-  if (!navigator.requestMIDIAccess) {
-    b.className   = 'midi-badge err';
-    l.textContent = 'MIDI: niet ondersteund';
-    hint.classList.add('show');
-    hintDetail.textContent = '→ Gebruik Chrome of Edge.';
-    return;
-  }
-
-  try {
-    mAcc = await navigator.requestMIDIAccess({ sysex: false });
-    mAcc.onstatechange = function(e) { updMidi(); };
-    updMidi();
-  } catch (ex) {
-    b.className   = 'midi-badge err';
-    l.textContent = 'MIDI: geweigerd';
-    hint.classList.add('show');
-    hintDetail.textContent = '→ Klik op "Toestaan" als de browser vraagt om MIDI-toegang.';
-  }
+/* ── MIDI ────────────────────────────────────────────────────────*/
+async function initMidi(){
+  var b=document.getElementById('midiBadge'),l=document.getElementById('midiLbl');
+  var hint=document.getElementById('usbHint'),hd=document.getElementById('usbHintDetail');
+  if(!navigator.requestMIDIAccess){b.className='midi-badge err';l.textContent='MIDI: niet ondersteund';hint.classList.add('show');hd.textContent='→ Gebruik Chrome of Edge.';return;}
+  try{mAcc=await navigator.requestMIDIAccess({sysex:false});mAcc.onstatechange=function(){updMidi();};updMidi();}
+  catch(ex){b.className='midi-badge err';l.textContent='MIDI: geweigerd';hint.classList.add('show');hd.textContent='→ Klik op "Toestaan".';}
 }
-
-/* Vernieuw lijst van MIDI-apparaten */
-function updMidi() {
-  if (!mAcc) return;
-
-  mIns = [];
-  mAcc.inputs.forEach(function(i) { mIns.push(i); });
-
-  var b   = document.getElementById('midiBadge');
-  var l   = document.getElementById('midiLbl');
-  var bar = document.getElementById('midiBar');
-  var sel = document.getElementById('midiSel');
-  var hint= document.getElementById('usbHint');
-  var hintDetail = document.getElementById('usbHintDetail');
-
-  mIns.forEach(function(i) { i.onmidimessage = null; });
-
-  if (mIns.length === 0) {
-    b.className   = 'midi-badge';
-    l.textContent = 'MIDI: geen apparaat';
-    bar.classList.remove('show');
-    hint.classList.add('show');
-    hintDetail.textContent = '→ Sluit je VersaKey aan via USB en probeer opnieuw.';
-    actIn = null;
-    return;
-  }
-
-  hint.classList.remove('show');
-  sel.innerHTML = '<option value="">— kies MIDI apparaat —</option>';
-  mIns.forEach(function(inp, i) {
-    var o = document.createElement('option');
-    o.value       = i;
-    o.textContent = inp.name;
-    sel.appendChild(o);
-  });
+function updMidi(){
+  if(!mAcc)return;
+  mIns=[];mAcc.inputs.forEach(function(i){mIns.push(i);});
+  var b=document.getElementById('midiBadge'),l=document.getElementById('midiLbl');
+  var bar=document.getElementById('midiBar'),sel=document.getElementById('midiSel');
+  var hint=document.getElementById('usbHint'),hd=document.getElementById('usbHintDetail');
+  mIns.forEach(function(i){i.onmidimessage=null;});
+  if(mIns.length===0){b.className='midi-badge';l.textContent='MIDI: geen apparaat';bar.classList.remove('show');hint.classList.add('show');hd.textContent='→ Sluit VersaKey aan via USB.';actIn=null;return;}
+  hint.classList.remove('show');sel.innerHTML='<option value="">— kies MIDI apparaat —</option>';
+  mIns.forEach(function(inp,i){var o=document.createElement('option');o.value=i;o.textContent=inp.name;sel.appendChild(o);});
   bar.classList.add('show');
-
-  var idx = mIns.findIndex(function(d) {
-    return d.name.toLowerCase().includes('versa') ||
-           d.name.toLowerCase().includes('devine');
-  });
-  if (idx < 0) idx = 0;
-
-  sel.value = idx;
-  pickMidi(idx);
+  var idx=mIns.findIndex(function(d){return d.name.toLowerCase().includes('versa')||d.name.toLowerCase().includes('devine');});
+  if(idx<0)idx=0;sel.value=idx;pickMidi(idx);
 }
-
-/* Opnieuw scannen */
-function scanMidi() { updMidi(); }
-
-/* Selecteer MIDI invoerapparaat */
-function pickMidi(idx) {
-  mIns.forEach(function(i) { i.onmidimessage = null; });
-  actIn = null;
-  document.getElementById('midiInfo').textContent = '';
-
-  if (idx === '' || idx === null || idx === undefined) return;
-
-  var inp = mIns[parseInt(idx)];
-  if (!inp) return;
-
-  actIn = inp;
-  inp.onmidimessage = onMidi;
-
-  document.getElementById('midiBadge').className = 'midi-badge ok';
-  document.getElementById('midiLbl').textContent =
-    inp.name.length > 22 ? inp.name.slice(0, 20) + '…' : inp.name;
-  document.getElementById('midiInfo').textContent = 'verbonden';
-  document.getElementById('devTxt').textContent   = inp.name;
-
-  console.log('[VersaKey] Verbonden met:', inp.name);
-  console.log('[VersaKey] Draai een encoder om te zien welk CC binnenkomt (kijk in console of CC Monitor)');
+function scanMidi(){updMidi();}
+function pickMidi(idx){
+  mIns.forEach(function(i){i.onmidimessage=null;});actIn=null;document.getElementById('midiInfo').textContent='';
+  if(idx===''||idx===null||idx===undefined)return;
+  var inp=mIns[parseInt(idx)];if(!inp)return;
+  actIn=inp;inp.onmidimessage=onMidi;
+  document.getElementById('midiBadge').className='midi-badge ok';
+  document.getElementById('midiLbl').textContent=inp.name.length>22?inp.name.slice(0,20)+'…':inp.name;
+  document.getElementById('midiInfo').textContent='verbonden';
+  document.getElementById('devTxt').textContent=inp.name;
+  console.log('[VersaKey] Verbonden:', inp.name);
 }
 
 /* ── MIDI BERICHT VERWERKEN ──────────────────────────────────────
-   Dit is de kern van de encoder-routing.
-   Elk inkomend MIDI-bericht wordt hier verwerkt.
+   Encoder routing werkt voor BEIDE banken tegelijk.
+   Welke bank ook actief is: als CC binnenkomt wordt het correct gerouteerd.
 
-   HOE WERKT DE ENCODER ROUTING:
-   1. Bericht binnenkomt → cmd = type, d1 = CC-nummer, d2 = waarde
-   2. Als cmd = 0xB0 (Control Change): kijk in encMap of d1 bekend is
-   3. encMap[d1] geeft de encoder-index terug (0-7)
-   4. updEncoder() update de balk en het getal
-   5. updateCCSlot() update de debug-monitor
+   WIZARD: als wizard actief is, krijgt hij het bericht als eerste. */
+function onMidi(ev){
+  var cmd=ev.data[0]&0xF0,d1=ev.data[1],d2=ev.data[2];
+  iA();rA();
 
-   ALS EEN KNOP NIET REAGEERT:
-   - Kijk in de CC Monitor welk CC binnenkomt
-   - Klik op de CC-badge van het juiste blokje en draai de knop (MIDI Learn)
-*/
-function onMidi(ev) {
-  var cmd = ev.data[0] & 0xF0; /* Berichttype: bovenste 4 bits */
-  var d1  = ev.data[1];         /* CC-nummer of nootnummer */
-  var d2  = ev.data[2];         /* Waarde of velocity */
+  if(cmd===0x90&&d2>0){
+    var f=d1+tr;if(f>=0&&f<=127)nOn(f,d2,true);
+  }else if(cmd===0x80||(cmd===0x90&&d2===0)){
+    nOf(d1+tr);document.getElementById('noteTxt').textContent='— speel een toets —';
+  }else if(cmd===0xB0){
 
-  iA(); rA();
+    /* Log altijd naar console */
+    var b0name = encMaps[0][d1]!==undefined ? ' B1:R'+(encMaps[0][d1]+1) : '';
+    var b1name = encMaps[1][d1]!==undefined ? ' B2:R'+(encMaps[1][d1]+9) : '';
+    console.log('[VersaKey] CC'+d1+'='+d2+(b0name||b1name||(d1===encBank?' →leren':' (onbekend)')));
 
-  if (cmd === 0x90 && d2 > 0) {
-    /* NOTE ON */
-    var f = d1 + tr;
-    if (f >= 0 && f <= 127) nOn(f, d2, true);
+    /* ── WIZARD: geeft priority aan de wizard als die actief is ── */
+    if (wizActive && d2 > 0) {
+      wizHandleCC(d1, d2);
+      flash();
+      return;
+    }
 
-  } else if (cmd === 0x80 || (cmd === 0x90 && d2 === 0)) {
-    /* NOTE OFF */
-    nOf(d1 + tr);
-    document.getElementById('noteTxt').textContent = '— speel een toets —';
-
-  } else if (cmd === 0xB0) {
-    /* CONTROL CHANGE — d1 = CC-nummer, d2 = waarde */
-
-    /* Log ALTIJD elk CC-bericht zodat je kunt debuggen */
-    console.log('[VersaKey] CC binnenkomst: CC' + d1 + ' = ' + d2 +
-      (encMap[d1] !== undefined ? ' → encoder R' + (encMap[d1]+1) + ' (' + ENC_DEF[encMap[d1]].n + ')' : ' (niet gekoppeld)'));
-
-    /* ── MIDI LEARN CHECK ─────────────────────────────────────────
-       Als er een encoder in learn-modus staat: koppel dit CC-nummer */
+    /* ── MIDI LEARN (handmatig) ─────────────────────────────────*/
     if (encLearn !== null && d2 > 0) {
-      finishLearn(d1);
-      updateCCSlot(encLearn !== null ? encLearn : -1, d1, d2);
+      finishLearn(d1, false);
+      updateCCSlot(encLearn ? encLearn.encIdx : -1, d1, d2);
       flash();
       return;
     }
 
-    /* ── ENCODER ROUTING ──────────────────────────────────────────
-       Zoek op welke encoder bij dit CC-nummer hoort.
-       encMap is een object: {74: 0, 71: 1, 21: 2, ...}
-       encMap[d1] geeft de encoder-index (0-7) of undefined */
-    var encIdx = encMap[d1]; /* Zoek de encoder-index op */
+    /* ── ENCODER ROUTING ─────────────────────────────────────────
+       Controleer BEIDE banken zodat ook de niet-actieve bank zijn
+       waarden bijwerkt als je in die bank draait */
+    var handled = false;
 
-    if (encIdx !== undefined) {
-      /* CC-nummer is bekend → update de juiste encoder-balk */
-      updEncoder(encIdx, d2);        /* Update balk + getal */
-      updateCCSlot(encIdx, d1, d2);  /* Update debug-monitor */
-
-      /* Speciale behandeling voor volume-encoder (CC7 = R8) */
-      if (d1 === ENC_DEF[7].cc) {  /* CC7 is de volume-encoder */
-        vol = d2 / 127;
-        if (mG) mG.gain.value = vol;
-        var vPct = Math.round(d2 / 127 * 100);
-        document.getElementById('volV').textContent = vPct;
+    /* Controleer bank 0 */
+    if (encMaps[0][d1] !== undefined) {
+      var idx = encMaps[0][d1];
+      if (encBank === 0) { updEncoder(idx, d2); updateCCSlot(idx, d1, d2); }
+      else { encVals[0][idx] = d2; } /* Sla op maar update geen UI */
+      /* Volume-encoder bijhouden (CC7 = R2 in bank 1) */
+      if (d1 === ENC_BANKS[0][1].cc) {
+        vol=d2/127;if(mG)mG.gain.value=vol;
+        document.getElementById('volV').textContent=Math.round(d2/127*100);
       }
-
-      flash();
-      return;
+      handled = true;
     }
 
-    /* ── ONBEKEND CC-NUMMER ───────────────────────────────────────
-       Dit CC is niet gekoppeld aan een encoder.
-       Toon het toch in de debug-monitor zodat de gebruiker het kan leren. */
-    updateCCSlot(-1, d1, d2); /* -1 = geen slot, toon alleen in live-tekst */
-
-    /* Vaste CC-nummers die altijd werken ongeacht de encoder-map */
-    if (d1 === 64) {
-      /* CC64 = Sustain pedaal */
-      sus = d2 >= 64;
-      document.getElementById('susBtn').classList.toggle('on', sus);
-      if (!sus) {
-        Object.keys(susH).forEach(function(n) { nOf(+n, true); });
-        susH = {};
-      }
-    } else if (d1 === 1) {
-      /* CC1 = Modulatiewiel → update Mod-strip */
-      document.getElementById('modF').style.height = (d2 / 127 * 100) + '%';
-    } else if (d1 === 7) {
-      /* CC7 = Volume (fallback als niet in encMap) */
-      var v = Math.round(d2 / 127 * 100);
-      vol = v / 100;
-      if (mG) mG.gain.value = vol;
-      document.getElementById('volV').textContent = v;
+    /* Controleer bank 1 */
+    if (encMaps[1][d1] !== undefined) {
+      var idx = encMaps[1][d1];
+      if (encBank === 1) { updEncoder(idx, d2); updateCCSlot(idx, d1, d2); }
+      else { encVals[1][idx] = d2; }
+      handled = true;
     }
 
-  } else if (cmd === 0xE0) {
-    /* PITCH BEND */
-    var bend = ((d2 << 7) | d1) - 8192;
-    pb = (bend / 8192) * 2;
-    document.getElementById('pitchF').style.height = (((bend + 8192) / 16384) * 100) + '%';
+    /* Toon onbekende CC toch in monitor */
+    if (!handled) {
+      updateCCSlot(-1, d1, d2);
+      /* Vaste CC nummers */
+      if(d1===64){sus=d2>=64;document.getElementById('susBtn').classList.toggle('on',sus);if(!sus){Object.keys(susH).forEach(function(n){nOf(+n,true);});susH={};}}
+      else if(d1===1){document.getElementById('modF').style.height=(d2/127*100)+'%';}
+    }
+
+  }else if(cmd===0xE0){
+    var bend=((d2<<7)|d1)-8192;pb=(bend/8192)*2;
+    document.getElementById('pitchF').style.height=(((bend+8192)/16384)*100)+'%';
   }
-
   flash();
 }
 
-/* ── LED KNIPPEREN ───────────────────────────────────────────────*/
+/* ── LED ─────────────────────────────────────────────────────────*/
 var ledT;
-function flash() {
-  var l = document.getElementById('led');
-  l.classList.add('f');
-  clearTimeout(ledT);
-  ledT = setTimeout(function() { l.classList.remove('f'); }, 120);
-}
+function flash(){var l=document.getElementById('led');l.classList.add('f');clearTimeout(ledT);ledT=setTimeout(function(){l.classList.remove('f');},120);}
 
-/* ── SERVICE WORKER (PWA offline) ───────────────────────────────*/
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', function() {
+/* ── SERVICE WORKER ──────────────────────────────────────────────*/
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){
     navigator.serviceWorker.register('sw.js')
-      .then(function(reg) { console.log('[VersaKey] SW geregistreerd:', reg.scope); })
-      .catch(function(err) { console.warn('[VersaKey] SW mislukt:', err); });
+      .then(function(r){console.log('[VersaKey] SW:',r.scope);})
+      .catch(function(e){console.warn('[VersaKey] SW mislukt:',e);});
   });
 }
 
 /* ── INITIALISATIE ───────────────────────────────────────────────
-   Volgorde is belangrijk:
-   1. initEncMap()    → bouw de CC→encoder koppelingsmap
-   2. buildCCSlots()  → maak de 8 debug-monitor blokjes
-   3. buildEncoders() → maak de 8 encoder-balken
-   4. buildPads()     → maak de drum-pads
-   5. setModel(49)    → laad VK-49 model (bouwt ook de piano)
-   6. applyZoom()     → pas opgeslagen zoom-niveau toe
-   7. initMidi()      → start USB-MIDI verbinding */
-initEncMap();    /* Bouw de standaard CC→encoder koppelingsmap */
-buildCCSlots();  /* v2.3: maak de debug-monitor blokjes */
-buildEncoders(); /* Maak de 8 encoder-balken zichtbaar */
-buildPads();     /* Maak de drum-pads */
-setModel(49);    /* Laad VK-49 model */
-applyZoom();     /* Pas opgeslagen zoom-niveau toe */
-initMidi();      /* Start USB-MIDI verbinding */
+   Volgorde:
+   1. initEncMaps()    → bouw CC→encoder maps voor beide banken
+   2. buildCCSlots()   → debug monitor blokjes
+   3. buildEncoders()  → encoder-balken (bank 1)
+   4. updateEncBankUI()→ bank-badge en knop-tekst
+   5. buildPads()      → drum pads
+   6. setModel(49)     → VK-49 piano
+   7. applyZoom()      → opgeslagen zoom
+   8. initMidi()       → USB-MIDI */
+initEncMaps();
+buildCCSlots();
+buildEncoders();
+updateEncBankUI();
+buildPads();
+setModel(49);
+applyZoom();
+initMidi();
 
-/* Verborgen knop om debug-balk terug te tonen (wordt zichtbaar na "Verberg") */
-document.getElementById('showDebugBtn').style.display = 'none'; /* Start verborgen */
-
-console.log('[VersaKey] App gestart v' + APP_VERSION + ' — encoder CC-map:', JSON.stringify(encMap));
+console.log('[VersaKey] App gestart v' + APP_VERSION);
+console.log('[VersaKey] Bank 1 (R1-R8) actief. Gebruik "Wissel → R9-R16" voor bank 2.');
+console.log('[VersaKey] Gebruik "🎛️ Programmeer bank" om alle 8 encoders stap voor stap te koppelen.');
 </script>
-
-<!-- Kleine knop om de CC Monitor terug te tonen als die verborgen is -->
-<!-- Zit verstopt in de encoder-balk, wordt zichtbaar na "Verberg" klikken -->
-<style>
-  #showDebugBtn { display: none; }
-</style>
-<script>
-  /* Voeg de "Toon CC Monitor" knop toe aan de encoder-balk na het laden */
-  (function() {
-    var encBar = document.querySelector('.enc-bar');
-    var btn = document.createElement('button');
-    btn.className = 'btn';
-    btn.id        = 'showDebugBtn';
-    btn.textContent = '📊 CC';
-    btn.title     = 'Toon de CC Monitor balk terug';
-    btn.style.cssText = 'flex-shrink:0;font-size:10px;padding:2px 6px;display:none;';
-    btn.onclick   = function() { toggleDebug(); };
-    encBar.insertBefore(btn, encBar.querySelector('.enc-learn-status'));
-  })();
-</script>
-
 </body>
 </html>

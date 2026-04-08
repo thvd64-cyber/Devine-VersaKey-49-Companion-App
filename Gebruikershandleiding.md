@@ -1,5 +1,5 @@
 # 📖 Gebruikershandleiding — Devine VersaKey Companion App
-**Versie: 2.2.0 · Datum: 2026-04-05**
+**Versie: 2.6.0 · Datum: 2026-04-08**
 
 ---
 
@@ -7,49 +7,62 @@
 1. [Wat is deze app?](#wat-is-deze-app)
 2. [Wat heb je nodig?](#wat-heb-je-nodig)
 3. [Stap-voor-stap: De app starten](#stap-voor-stap-de-app-starten)
-4. [Het scherm uitgelegd](#het-scherm-uitgelegd)
-5. [De piano spelen](#de-piano-spelen)
-6. [Zoom — piano groter of kleiner](#zoom--piano-groter-of-kleiner)
-7. [Rotary Encoders (draaiknoppen)](#rotary-encoders-draaiknoppen)
-8. [MIDI Learn — encoders koppelen](#midi-learn--encoders-koppelen)
-9. [Drum Pads](#drum-pads)
-10. [Touch Strips — Pitch & Mod](#touch-strips--pitch--mod)
-11. [Geluid instellen](#geluid-instellen)
-12. [Octaaf en Transpositie](#octaaf-en-transpositie)
-13. [Als je VersaKey verbindt via USB](#als-je-versakey-verbindt-via-usb)
-14. [Als het niet werkt](#als-het-niet-werkt)
-15. [Installeren als app (PWA)](#installeren-als-app-pwa)
-16. [Modellen — hoeveel toetsen?](#modellen--hoeveel-toetsen)
-17. [Wat gaat er nog komen? (Backlog)](#wat-gaat-er-nog-komen-backlog)
-18. [Versiegeschiedenis](#versiegeschiedenis)
+4. [iPad en iPhone gebruiken](#ipad-en-iphone-gebruiken)
+5. [Het scherm uitgelegd](#het-scherm-uitgelegd)
+6. [De piano spelen](#de-piano-spelen)
+7. [Zoom — piano groter of kleiner](#zoom--piano-groter-of-kleiner)
+8. [Rotary Encoders (draaiknoppen)](#rotary-encoders-draaiknoppen)
+9. [MIDI Learn — encoders koppelen](#midi-learn--encoders-koppelen)
+10. [Drum Pads](#drum-pads)
+11. [Touch Strips — Pitch & Mod](#touch-strips--pitch--mod)
+12. [Geluid instellen](#geluid-instellen)
+13. [Octaaf en Transpositie](#octaaf-en-transpositie)
+14. [Als je VersaKey verbindt via USB](#als-je-versakey-verbindt-via-usb)
+15. [Als het niet werkt](#als-het-niet-werkt)
+16. [Installeren als app (PWA)](#installeren-als-app-pwa)
+17. [Modellen — hoeveel toetsen?](#modellen--hoeveel-toetsen)
+18. [Wat gaat er nog komen? (Backlog)](#wat-gaat-er-nog-komen-backlog)
+19. [Versiegeschiedenis](#versiegeschiedenis)
 
 ---
 
 ## 🎹 Wat is deze app?
 
-De **Devine VersaKey Companion App** is een gratis webapp die je samen met je VersaKey MIDI-keyboard gebruikt. Je opent hem gewoon in Chrome of Edge — niets hoeft geïnstalleerd te worden!
+De **Devine VersaKey Companion App** is een gratis app die je samen met je VersaKey MIDI-keyboard gebruikt. Op Windows en Android open je hem in Chrome of Edge — niets hoeft geïnstalleerd te worden. Op iPad en iPhone gebruik je de speciale VersaKey Companion iOS app.
 
 De app doet twee dingen:
 1. **Geluid maken** — speel noten via de browser (Web Audio), ook zonder VersaKey
 2. **MIDI-verbinding** — verbind je fysieke VersaKey via USB-kabel en zie alles live reageren
 
 **Werkt op:**
-| Platform | Browser | Verbinding |
+| Platform | Hoe | Verbinding |
 |---|---|---|
-| Windows 10/11 | ✅ Chrome of Edge | USB-kabel |
-| Android (telefoon/tablet) | ✅ Chrome | USB-OTG kabel |
-| iOS / iPhone | ❌ Niet ondersteund | — |
+| Windows 10/11 | ✅ Chrome of Edge (browser) | USB-B kabel |
+| Android (telefoon/tablet) | ✅ Chrome (browser) | USB-OTG kabel |
+| iPad / iPhone | ✅ VersaKey Companion iOS App | USB via Camera Adapter |
 | Firefox (alle platforms) | ❌ Niet ondersteund | — |
+
+> 💡 **iPad/iPhone nieuw in v2.5.0!** Zie sectie [iPad en iPhone gebruiken](#ipad-en-iphone-gebruiken) voor de stap-voor-stap instructies.
 
 ---
 
 ## 🛒 Wat heb je nodig?
 
-- Een computer (Windows) of Android-telefoon/tablet
+### Windows of Android:
+- Een computer (Windows 10/11) of Android-telefoon/tablet
 - **Chrome** of **Edge** browser (gratis te downloaden)
 - Optioneel: je **Devine VersaKey** keyboard (VK-25, VK-49, VK-61 of VK-88)
-- Optioneel: een **USB-kabel** (USB-A naar USB-B, als bij een printer)
+- Optioneel: een **USB-B kabel** (als bij een printer)
 - De app: open `index.html` in je browser
+
+### iPad of iPhone:
+- iPad met USB-C poort (iPad 10e generatie of nieuwer) **of** iPhone 15 of nieuwer
+- De **VersaKey Companion iOS App** (via TestFlight)
+- Je **Devine VersaKey** keyboard
+- Een **USB-B kabel** (meegeleverd met de VersaKey)
+- Een **Apple USB Camera Adapter** (USB-A naar USB-C) — €29–€45 bij Apple of Bol.com
+
+> 💡 **Oudere iPad met Lightning-aansluiting?** Gebruik de Apple Lightning naar USB Camera Adapter (ook €29).
 
 > 💡 **Tip voor kinderen:** Je kunt de app ook gebruiken zonder keyboard! Klik gewoon op de piano-toetsen op het scherm.
 
@@ -61,7 +74,7 @@ De app doet twee dingen:
 1. Open `index.html` in Chrome of Edge
 2. Klik op een piano-toets → je hoort geluid! ✅
 
-### Met VersaKey via USB-kabel:
+### Met VersaKey via USB-kabel (Windows of Android):
 1. Sluit je VersaKey aan op de computer met de USB-kabel
 2. Open `index.html` in **Chrome** of **Edge**
 3. De browser vraagt: *"Wil je MIDI-toegang toestaan?"* → klik **Toestaan**
@@ -69,6 +82,106 @@ De app doet twee dingen:
 5. Speel een toets op de VersaKey → de piano op het scherm reageert! ✅
 
 > ⚠️ **Gebruik NOOIT Firefox** — die ondersteunt USB-MIDI niet.
+
+### Met VersaKey op iPad of iPhone:
+Zie de volgende sectie voor alle stappen.
+
+---
+
+## 📱 iPad en iPhone gebruiken *(Nieuw in v2.5.0)*
+
+Apple's Safari ondersteunt geen USB MIDI — dat is een keuze van Apple, geen bug.
+Wij lossen dit op met een eigen iOS app die de VersaKey direct leest via het
+ingebouwde MIDI systeem van iOS (CoreMIDI). Dezelfde interface als op Windows en
+Android — maar dan op je iPad of iPhone.
+
+### Wat heb je nodig?
+
+| Wat | Waar te koop |
+|---|---|
+| VersaKey 49 + USB-B kabel | Eigen bezit |
+| Apple USB Camera Adapter (USB-A → USB-C) | Apple Store / Bol.com (€29–€45) |
+| iPad 10e gen+ of iPhone 15+ (USB-C) | Eigen bezit |
+| VersaKey Companion iOS App | Via TestFlight (zie stap 1) |
+
+---
+
+### Stap 1 — De iOS app installeren via TestFlight
+
+TestFlight is Apple's officiele app om beta-apps te installeren. Het is gratis.
+
+1. Open de **App Store** op je iPad of iPhone
+2. Zoek op **"TestFlight"** en installeer de gratis TestFlight app
+3. Open de uitnodigingslink die je ontvangen hebt voor de VersaKey Companion app
+4. Klik **"Accepteer"** → de app installeert zich automatisch
+5. Je ziet nu het VersaKey icoon op je home screen ✅
+
+> ℹ️ Heb je nog geen uitnodigingslink? Neem contact op via de projectpagina.
+
+---
+
+### Stap 2 — De VersaKey aansluiten
+
+Sluit de hardware aan in deze volgorde:
+
+```
+VersaKey 49
+    │  USB-B kabel (meegeleverd)
+    ▼
+Apple USB Camera Adapter  (USB-A ingang)
+    │  USB-C naar iPad
+    ▼
+iPad / iPhone
+```
+
+> ⚠️ **Batterij tip:** De VersaKey krijgt stroom van de iPad. Gebruik bij voorkeur
+> een Camera Adapter **mét extra laadpoort** zodat je iPad tegelijk kan opladen.
+
+---
+
+### Stap 3 — De app starten en spelen
+
+1. Open de **VersaKey Companion** app op je iPad
+2. De app toont een blauwe banner: *"Sluit de VersaKey 49 aan via USB Camera Adapter"*
+3. Zodra de VersaKey herkend wordt verdwijnt de banner automatisch ✅
+4. Speel een toets op de VersaKey → de piano op het scherm reageert!
+
+> 💡 **De app herkent de VersaKey automatisch** zodra je de kabel aansluit —
+> ook als de app al open was.
+
+---
+
+### Wat werkt hetzelfde als op Windows?
+
+Alles. De iOS app laadt exact dezelfde interface als de Windows/Android versie:
+
+- ✅ Piano spelen — noten, velocity, aftertouch
+- ✅ Rotary Encoders — alle 16 knopen (bank 1 en bank 2)
+- ✅ Drum Pads — bank 1–8 en bank 9–16
+- ✅ Touch Strips — Pitch Bend en Modulation
+- ✅ MIDI Learn — encoders koppelen aan CC-nummers
+- ✅ Zoom — piano groter of kleiner
+- ✅ Alle instrumentgeluiden via Web Audio
+
+---
+
+### Veelgestelde vragen iOS
+
+**Werkt het ook op een oudere iPad?**
+Ja, als je iPad iOS 15 of nieuwer heeft (uitgebracht 2021). Oudere iPads met
+Lightning-aansluiting hebben een Lightning naar USB Camera Adapter nodig.
+
+**Moet internet aan staan?**
+Nee. De app werkt volledig offline — alles is ingebakken in de app.
+
+**Werkt het ook met VersaKey 25, 61 of 88?**
+Ja. De app herkent alle VersaKey modellen op naam.
+
+**De VersaKey wordt niet herkend — wat nu?**
+1. Koppel de USB-kabel los en sluit hem opnieuw aan
+2. Controleer of de Camera Adapter goed vastzit aan de iPad
+3. Herstart de app
+4. Zie ook de [troubleshooting sectie](#als-het-niet-werkt)
 
 ---
 
@@ -96,7 +209,7 @@ Het scherm is van boven naar beneden verdeeld in 5 delen:
 
 ### Via het scherm (muis of aanraking):
 - **Klik** op een witte of zwarte toets → noot klinkt
-- **Aanraken** op telefoon/tablet werkt ook
+- **Aanraken** op telefoon/tablet/iPad werkt ook
 
 ### Via je computertoetsenbord:
 | Toets | Noot |
@@ -120,7 +233,7 @@ Gewoon spelen! De app reageert automatisch op alles wat je speelt.
 
 ---
 
-## 🔍 Zoom — piano groter of kleiner *(Nieuw in v2.2.0)*
+## 🔍 Zoom — piano groter of kleiner *(Toegevoegd in v2.2.0)*
 
 Onderaan het scherm staat de **ZOOM** knop. Hiermee vergroot of verklein je de piano-toetsen en de touch-strips.
 
@@ -145,20 +258,24 @@ Onderaan het scherm staat de **ZOOM** knop. Hiermee vergroot of verklein je de p
 
 De VersaKey heeft 8 fysieke draaiknoppen (R1 t/m R8). In de app zie je 8 gekleurde balkjes die live meebewegen als je draait.
 
-### Standaard koppelingen:
+### Standaard koppelingen bank 1 (R1–R8):
 
 | Knop | Naam | CC | Kleur |
 |---|---|---|---|
-| R1 | Cutoff (Filter) | CC74 | 🟠 Oranje |
-| R2 | Resonantie | CC71 | 🟠 Oranje |
-| R3 | LFO Rate | CC21 | 🟢 Groen |
-| R4 | Detune | CC18 | 🟢 Groen |
-| R5 | Attack | CC73 | 🟣 Paars |
-| R6 | Release | CC72 | 🟣 Paars |
-| R7 | Chorus / FX | CC93 | 🔵 Blauw |
-| R8 | Volume | CC7 | ⚫ Grijs |
+| R1 | Program Change | CC131 | 🟠 Oranje |
+| R2 | Volume | CC7 | 🟠 Oranje |
+| R3 | Standard MIDI | CC92 | 🟢 Groen |
+| R4 | Standard MIDI | CC81 | 🟢 Groen |
+| R5 | Reverb Depth | CC91 | 🟣 Paars |
+| R6 | Standard MIDI | CC67 | 🟣 Paars |
+| R7 | Standard MIDI | CC86 | 🔵 Blauw |
+| R8 | Chorus Depth | CC93 | ⚫ Grijs |
 
-> 💡 **R8 (Volume)** is speciaal: als je de knop op de VersaKey draait, beweegt ook de volume-schuifbalk in de topbar mee!
+### Bank 2 (R9–R16):
+Wissel naar bank 2 via de **"Wissel → R9–R16"** knop in de encoder-balk.
+Bank 2 is volledig vrij programmeerbaar via de wizard of MIDI Learn.
+
+> 💡 **R2 (Volume, CC7)** is speciaal: als je de knop op de VersaKey draait, beweegt ook de volume-schuifbalk in de topbar mee!
 
 ---
 
@@ -168,40 +285,87 @@ Heb je de VersaKey zo ingesteld dat een knop een ander CC-nummer stuurt? Dan kun
 
 ### Hoe werkt MIDI Learn?
 
-1. **Klik** op de kleine CC-badge van een encoder (bijv. `CC74` naast R1)
+1. **Klik** op de kleine CC-badge van een encoder (bijv. `CC131` naast R1)
    → het blokje begint te *pulsen* (knipperen) en wordt oranje
 2. **Draai** de gewenste hardware-knop op je VersaKey
    → de app slaat de koppeling op! ✅
 3. De badge toont nu het nieuwe CC-nummer
 
+### Programmeer-wizard:
+Klik op **"🎛️ Programmeer bank"** om alle 8 encoders van de actieve bank
+stap voor stap te koppelen via de wizard.
+
 ### Reset Learn:
-Klik op **"Reset Learn"** om alle koppelingen terug te zetten naar de standaard CC-nummers uit het handboek.
+Klik op **"↺ Reset"** om alle koppelingen terug te zetten naar de fabriekswaarden.
 
 > ℹ️ Wil je een learn-sessie annuleren? Klik nog een keer op de CC-badge van dezelfde encoder.
 
 ---
 
-## 🥁 Drum Pads
+## 🥁 Drum Pads *(Uitgebreid in v2.6.0)*
 
-8 gekleurde pads voor drums en percussie.
+16 programmeerbare pads verdeeld over 2 banken.
 
-### Bank 1–8 (standaard):
-| Pad | Kleur | Instrument | MIDI |
+### Bank wisselen
+Klik op **"Wissel → 9–16"** in de pad-balk om te wisselen tussen bank 1–8 en bank 9–16.
+
+### Fabriekswaarden bank 1–8:
+| Pad | Naam | MIDI Noot | Kleur |
 |---|---|---|---|
-| 1 | 🔴 Rood | Kick | C1 |
-| 2 | 🟤 Bruin | Snare | D1 |
-| 3 | 🔵 Blauw | Hi-Hat (gesloten) | F#1 |
-| 4 | 🟢 Groen | Hi-Hat (open) | A#1 |
-| 5 | 🟣 Paars | Tom Laag | F1 |
-| 6 | 🟠 Oranje | Tom Hoog | D2 |
-| 7 | 🔴 Rood | Crash Cymbal | C#2 |
-| 8 | 🩵 Blauwgroen | Ride Cymbal | D#2 |
+| 1 | Kick | C2 (36) | 🔴 Rood |
+| 2 | Snare | D2 (38) | 🟤 Bruin |
+| 3 | Hi-Hat (gesloten) | F#2 (42) | 🔵 Blauw |
+| 4 | Hi-Hat (open) | A#2 (46) | 🟢 Groen |
+| 5 | Tom Laag | F2 (41) | 🟣 Paars |
+| 6 | Tom Hoog | D3 (50) | 🟠 Oranje |
+| 7 | Crash | C#3 (49) | 🔴 Rood |
+| 8 | Ride | D#3 (51) | 🩵 Blauwgroen |
 
-### Wisselen naar Bank 9–16:
-Klik op de knop **"Bank 1–8"** → hij wordt **"Bank 9–16"** met extra percussie.
+### Fabriekswaarden bank 9–16:
+| Pad | Naam | MIDI Noot | Kleur |
+|---|---|---|---|
+| 9 | Clap | D#2 (39) | 🟠 Oranje |
+| 10 | Rim Shot | C#2 (37) | 🔵 Blauw |
+| 11 | Cowbell | G#3 (56) | 🟢 Groen |
+| 12 | Tambourine | F#3 (54) | 🟣 Paars |
+| 13 | High Bongo | C4 (60) | 🩵 Blauwgroen |
+| 14 | Low Bongo | C#4 (61) | 🟤 Bruin |
+| 15 | Agogo High | G4 (67) | 🔴 Rood |
+| 16 | Agogo Low | G#4 (68) | 🟠 Oranje |
 
 ---
 
+### Pad programmeren
+
+**Editor openen:**
+- **Lang indrukken** (600ms) op een pad → editor popup verschijnt
+- **Rechtsklik** op een pad → editor popup verschijnt
+
+**In de editor kun je instellen:**
+
+| Instelling | Wat het doet |
+|---|---|
+| Naam | Naam op de pad (max 16 tekens) |
+| Modus: Noot | Pad stuurt een MIDI noot — voor drums en samples |
+| Modus: CC | Pad stuurt een Control Change — voor parameters zoals volume |
+| MIDI Noot | Welke noot (bijv. C2, F#3) — typ of gebruik ▼ ▲ |
+| MIDI Kanaal | Kanaal 1–16 (standaard kanaal 10 = GM drums) |
+| CC Nummer | Nummer 0–127 voor de controller waarde |
+| Kleur | 8 kleuren om pads visueel te organiseren |
+
+### MIDI Learn voor pads
+
+1. Open de editor van een pad (lang indrukken of rechtsklik)
+2. Klik **"🎹 MIDI Learn noot"**
+3. Er verschijnt een oranje banner onderaan: *"Sla pad X aan op de VersaKey…"*
+4. Sla de gewenste pad aan op je VersaKey keyboard
+5. De noot wordt automatisch gekoppeld ✅
+
+Voor CC-modus: klik **"🎛 Learn CC"** en draai de gewenste knop.
+
+### Pad terugzetten
+Klik **"↺ Reset bank"** in de pad-balk om de volledige actieve bank
+terug te zetten naar de fabriekswaarden.
 ## 🎚️ Touch Strips — Pitch & Mod
 
 Links van de piano staan twee smalle strips.
@@ -252,25 +416,29 @@ Bovenaan in de topbar kun je het instrument kiezen:
 
 ## 🔌 Als je VersaKey verbindt via USB
 
-### Stap 1: Kabel aansluiten
+### Windows en Android:
+
+**Stap 1: Kabel aansluiten**
 Sluit de USB-kabel aan van je VersaKey naar de computer.
 
-### Stap 2: MIDI toestaan
+**Stap 2: MIDI toestaan**
 Chrome vraagt toestemming. Klik **"Toestaan"**.
 
-### Stap 3: Apparaat kiezen
+**Stap 3: Apparaat kiezen**
 Onder de topbar verschijnt een groene balk met een dropdown. Kies je VersaKey.
 De app zoekt automatisch naar een apparaat met "versa" of "devine" in de naam.
 
-### Stap 4: Genieten! 🎹
+**Stap 4: Genieten! 🎹**
 Het groene bolletje 🟢 in de topbar toont dat je verbonden bent.
 
-### USB aanprikken terwijl de app open is:
-De app herkent je VersaKey automatisch als je de USB-kabel aanplugt.
+### iPad en iPhone:
+Zie sectie [iPad en iPhone gebruiken](#ipad-en-iphone-gebruiken).
 
 ---
 
 ## 🆘 Als het niet werkt
+
+### Windows en Android:
 
 | Probleem | Oplossing |
 |---|---|
@@ -281,11 +449,22 @@ De app herkent je VersaKey automatisch als je de USB-kabel aanplugt.
 | App laadt niet | Zorg dat `sw.js` en `manifest.json` in dezelfde map staan als `index.html` |
 | Zoom werkt niet | Wis je browser-cache (Ctrl+Shift+R) om de nieuwe versie te laden |
 
+### iPad en iPhone:
+
+| Probleem | Oplossing |
+|---|---|
+| Blauwe banner verdwijnt niet | Koppel de USB-kabel los en sluit hem opnieuw aan |
+| VersaKey niet herkend | Controleer of de Camera Adapter goed vastzit aan de iPad |
+| Geen geluid | Tik eerst ergens op het scherm zodat audio geactiveerd wordt |
+| App crasht bij aansluiten | Herstart de app en sluit de VersaKey dan pas aan |
+| Banner verdwijnt maar geen MIDI | Sluit de kabel los, wacht 3 seconden, sluit opnieuw aan |
+| iOS app niet beschikbaar | Controleer je TestFlight uitnodiging of vraag een nieuwe link aan |
+
 ---
 
-## 📱 Installeren als app (PWA)
+## 📱 Installeren als app (PWA) — Windows en Android
 
-Je kunt de app installeren als een echte app op je bureaublad of telefoon!
+Je kunt de webapp installeren als een echte app op je bureaublad of telefoon!
 
 ### Windows (Chrome/Edge):
 1. Open de app in Chrome
@@ -300,6 +479,8 @@ Je kunt de app installeren als een echte app op je bureaublad of telefoon!
 4. De app staat nu op je startscherm!
 
 > 💡 De app werkt ook **offline** nadat je hem eens hebt geladen — dankzij de Service Worker.
+
+> ℹ️ iPad/iPhone gebruikers installeren de native app via TestFlight — geen PWA nodig.
 
 ---
 
@@ -320,8 +501,9 @@ Kies het model dat overeenkomt met jouw VersaKey:
 
 | Prioriteit | Functie |
 |---|---|
-| 🔴 Hoog | Voorstel C: Preset-systeem voor encoder-combinaties |
+| 🔴 Hoog | Encoder preset opslaan/laden (naam + alle 16 CC-koppelingen) |
 | 🔴 Hoog | Pad-programmatie uitbreiden |
+| 🟡 Middel | iOS app distribueren via TestFlight |
 | 🟡 Middel | Pad kleuren aanpasbaar via UI |
 | 🟡 Middel | Velocity curve instelling in UI |
 | 🟢 Laag | Piano roll visualizer integreren in hoofdapp |
@@ -334,6 +516,10 @@ Kies het model dat overeenkomt met jouw VersaKey:
 
 | Versie | Datum | Wat is er nieuw? |
 |---|---|---|
+| **v2.6.0** | 2026-04-08 | ✅ Pad programmatie — noot, CC, kleur, naam, MIDI Learn per pad |
+| **v2.5.0** | 2026-04-08 | ✅ iOS platform support — eigen Swift app voor iPad en iPhone |
+| **v2.4.0** | 2026-04-06 | ✅ Dubbele encoder bank (R1–R16), programmeer-wizard, correcte fabrieks CC-nummers |
+| **v2.3.0** | 2026-04-05 | ✅ CC Debug Monitor, help popup, waarden altijd zichtbaar |
 | **v2.2.0** | 2026-04-05 | ✅ Zoom-knop piano en strips (3 niveaus, wordt onthouden) |
 | **v2.1.0** | 2026-04-05 | ✅ Rotary Encoders met live CC-meters en MIDI Learn |
 | **v2.0.0** | 2026-04-05 | ✅ USB-MIDI focus, J6 sectie verwijderd, versie-badge |

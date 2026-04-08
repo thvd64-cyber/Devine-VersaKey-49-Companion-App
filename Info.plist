@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Info.plist
+  ──────────────────────────────────────────────────────────────────────────────
+  Devine VersaKey 49 — Companion App · iOS
+  Versie : 1.0.0
+  Datum  : 2026-04-07
+
+  WAT DIT BESTAND DOET
+  ─────────────────────
+  Declareert app metadata en rechten aan iOS.
+  Kritische instellingen voor onze app:
+   - UIBackgroundModes: audio → MIDI blijft werken als app op achtergrond staat
+   - NSMicrophoneUsageDescription → verplicht voor Audio sessie
+   - UISupportedInterfaceOrientations → alle richtingen ondersteund
+  ──────────────────────────────────────────────────────────────────────────────
+-->
+<plist version="1.0">
+<dict>
+
+  <!-- ── APP IDENTITEIT ──────────────────────────────────────────────────── -->
+
+  <!-- Unieke bundle identifier — aanpassen naar jouw Apple Developer account -->
+  <key>CFBundleIdentifier</key>
+  <string>com.devine.versakeycompanion</string>
+
+  <!-- App naam zoals getoond op het home screen -->
+  <key>CFBundleDisplayName</key>
+  <string>VersaKey</string>
+
+  <!-- Interne app naam -->
+  <key>CFBundleName</key>
+  <string>VersaKeyCompanion</string>
+
+  <!-- Versienummer zichtbaar voor gebruikers (App Store) -->
+  <key>CFBundleShortVersionString</key>
+  <string>1.0.0</string>
+
+  <!-- Build nummer — verhoog bij elke build voor TestFlight -->
+  <key>CFBundleVersion</key>
+  <string>1</string>
+
+  <!-- App type — standaard voor iOS apps -->
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+
+  <!-- Hoofd executable naam — zelfde als product naam in Xcode -->
+  <key>CFBundleExecutable</key>
+  <string>$(EXECUTABLE_NAME)</string>
+
+  <!-- Development regio -->
+  <key>CFBundleDevelopmentRegion</key>
+  <string>nl</string>
+
+  <!-- ── KRITISCH: ACHTERGROND AUDIO ──────────────────────────────────────── -->
+  <!--
+    UIBackgroundModes: audio
+    ────────────────────────
+    Dit is de meest kritische instelling voor onze app.
+    Zonder deze sleutel stopt MIDI verwerking zodra de gebruiker de app
+    naar de achtergrond stuurt (bijv. om een andere app te checken).
+
+    Met 'audio' blijft de AVAudioSession en CoreMIDI actief op de achtergrond.
+    De VersaKey blijft MIDI sturen en onze app blijft ontvangen.
+  -->
+  <key>UIBackgroundModes</key>
+  <array>
+    <string>audio</string>
+  </array>
+
+  <!-- ── PRIVACY BESCHRIJVINGEN (VERPLICHT DOOR APPLE) ────────────────────── -->
+  <!--
+    Apple vereist een tekstuele uitleg voor elk systeem-recht dat je gebruikt.
+    Deze tekst wordt getoond aan de gebruiker in de toestemming-popup.
+    Wij hebben microfoon nodig voor de AVAudioSession (ook zonder echte microfoon).
+  -->
+  <key>NSMicrophoneUsageDescription</key>
+  <string>VersaKey Companion gebruikt audio voor het weergeven van MIDI geluiden.</string>
+
+  <!-- ── SCÈNE CONFIGURATIE (iOS 13+) ─────────────────────────────────────── -->
+  <!--
+    UIApplicationSceneManifest configureert het scene systeem van iOS 13+.
+    EnableMultipleWindows: false = iPad split-screen niet ondersteund (vereenvoudigt de app).
+    SceneConfigurations verwijst naar onze SceneDelegate class.
+  -->
+  <key>UIApplicationSceneManifest</key>
+  <dict>
+    <key>UIApplicationSupportsMultipleScenes</key>
+    <false/>
+    <key>UISceneConfigurations</key>
+    <dict>
+      <key>UIWindowSceneSessionRoleApplication</key>
+      <array>
+        <dict>
+          <key>UISceneConfigurationName</key>
+          <string>Default Configuration</string>
+          <key>UISceneDelegateClassName</key>
+          <string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
+        </dict>
+      </array>
+    </dict>
+  </dict>
+
+  <!-- ── SCHERMORIËNTATIE ──────────────────────────────────────────────────── -->
+  <!--
+    Wij ondersteunen alle oriëntaties — de Companion App werkt zowel
+    staand (portrait) als liggend (landscape) op iPad en iPhone.
+  -->
+  <key>UISupportedInterfaceOrientations</key>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+    <string>UIInterfaceOrientationPortraitUpsideDown</string>
+    <string>UIInterfaceOrientationLandscapeLeft</string>
+    <string>UIInterfaceOrientationLandscapeRight</string>
+  </array>
+
+  <!-- iPad specifieke oriëntaties -->
+  <key>UISupportedInterfaceOrientations~ipad</key>
+  <array>
+    <string>UIInterfaceOrientationPortrait</string>
+    <string>UIInterfaceOrientationPortraitUpsideDown</string>
+    <string>UIInterfaceOrientationLandscapeLeft</string>
+    <string>UIInterfaceOrientationLandscapeRight</string>
+  </array>
+
+  <!-- ── STATUS BAR ────────────────────────────────────────────────────────── -->
+  <!--
+    Verberg de status balk — de Companion App vult het volledige scherm.
+    UIStatusBarStyle: LightContent = witte klok/batterij iconen (op donkere achtergrond).
+  -->
+  <key>UIStatusBarHidden</key>
+  <false/>
+  <key>UIStatusBarStyle</key>
+  <string>UIStatusBarStyleLightContent</string>
+
+  <!-- ── NETWERK BEVEILIGING ────────────────────────────────────────────────── -->
+  <!--
+    App Transport Security instellingen.
+    De app laadt index.html LOKAAL uit de bundle — geen netwerk nodig.
+    Wij staan lokale bestanden toe (AllowsLocalNetworking).
+    AllowsArbitraryLoads: false = veilig (standaard, geen http:// verbindingen)
+  -->
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsLocalNetworking</key>
+    <true/>
+    <key>NSAllowsArbitraryLoads</key>
+    <false/>
+  </dict>
+
+  <!-- ── MINIMALE iOS VERSIE ───────────────────────────────────────────────── -->
+  <!--
+    iOS 15.0 = uitgebracht september 2021.
+    Dekt 95%+ van actieve iPads en iPhones (april 2026).
+    WKWebView, CoreMIDI, Swift 5.9 werken allemaal op iOS 15+.
+  -->
+  <key>MinimumOSVersion</key>
+  <string>15.0</string>
+
+  <!-- ── LAUNCH SCREEN ─────────────────────────────────────────────────────── -->
+  <!--
+    Verwijst naar LaunchScreen.storyboard (aanmaken in Xcode).
+    Toon een eenvoudig donker scherm met de app naam.
+  -->
+  <key>UILaunchStoryboardName</key>
+  <string>LaunchScreen</string>
+
+  <!-- ── APPARAAT VEREISTEN ────────────────────────────────────────────────── -->
+  <!--
+    De app draait op iPhone én iPad.
+    UIDeviceFamily: 1 = iPhone, 2 = iPad.
+  -->
+  <key>UIDeviceFamily</key>
+  <array>
+    <integer>1</integer>
+    <integer>2</integer>
+  </array>
+
+</dict>
+</plist>
